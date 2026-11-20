@@ -7,10 +7,15 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "io.shieldvase.marketplace"
     },
     "android": {
+      "package": "io.shieldvase.marketplace",
       "adaptiveIcon": {
         "backgroundColor": "#2459DB",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -44,3 +44,7 @@ yarn-error.*
 # design reference dumps (not part of the app)
 stitch_shieldvase_mobile_ui_flow/
 .claude/
+
+# EAS store-submission credentials (never commit)
+play-store-service-account.json
+credentials.json
