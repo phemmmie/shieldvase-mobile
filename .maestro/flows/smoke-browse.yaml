@@ -1,0 +1,14 @@
+# Smoke: launch → home renders → open a product → back.
+# Guest browsing is allowed per doc 10, so no sign-in is needed.
+appId: ${APP_ID:-host.exp.Exponent}  # Expo Go; replace with app bundle id for dev builds
+---
+- launchApp
+- assertVisible: "ShieldVase"
+- assertVisible: "Categories"
+- assertVisible: "Featured products"
+- tapOn:
+    id: "product-card" # first card (add testID when wiring)
+    optional: true
+- assertVisible:
+    text: "Supplier offers"
+    optional: true

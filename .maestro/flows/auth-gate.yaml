@@ -1,0 +1,8 @@
+# Auth gate: guest taps protected feature → sign-in screen appears.
+appId: ${APP_ID:-host.exp.Exponent}
+---
+- launchApp
+- tapOn: "Account"
+- assertVisible: "You’re browsing as a guest"
+- tapOn: "Sign in"
+- assertVisible: "Sign in"

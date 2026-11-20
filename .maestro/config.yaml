@@ -1,0 +1,4 @@
+# Maestro E2E config — run: `maestro test .maestro/flows/`
+# Requires a dev build or Expo Go on the target device/emulator.
+flows:
+  - flows/*.yaml

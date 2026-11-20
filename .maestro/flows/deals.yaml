@@ -1,0 +1,8 @@
+# Deals hub renders its three segments.
+appId: ${APP_ID:-host.exp.Exponent}
+---
+- launchApp
+- openLink: shieldvase://deals
+- assertVisible: "Group Buys"
+- tapOn: "Price Locks"
+- assertVisible: "My Deals"
