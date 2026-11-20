@@ -63,15 +63,30 @@ export default function RfqsScreen() {
               <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(220)}>
               <Pressable style={styles.card} onPress={() => router.push(`/rfq/${r.id}`)}>
                 <View style={styles.row}>
-                  <Text style={styles.number}>{r.rfq_number}</Text>
-                  <Text
+                  <View style={styles.noRow}>
+                    <View style={styles.cardIcon}>
+                      <Ionicons name="document-text-outline" size={14} color={colors.secondary} />
+                    </View>
+                    <Text style={styles.number}>{r.rfq_number}</Text>
+                  </View>
+                  <View
                     style={[
-                      styles.status,
-                      { color: STATUS_COLORS[r.status] ?? colors.textMuted },
+                      styles.pill,
+                      {
+                        backgroundColor:
+                          (STATUS_COLORS[r.status] ?? colors.textMuted) + '1A',
+                      },
                     ]}
                   >
-                    {r.status.replace('_', ' ')}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.pillText,
+                        { color: STATUS_COLORS[r.status] ?? colors.textMuted },
+                      ]}
+                    >
+                      {r.status.replace('_', ' ')}
+                    </Text>
+                  </View>
                 </View>
                 <Text style={styles.title} numberOfLines={1}>
                   {r.title ?? 'Request for quotation'}
@@ -121,8 +136,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  noRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  cardIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.sm,
+    backgroundColor: colors.secondarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   number: { ...typography.bodyStrong, color: colors.text },
-  status: { ...typography.micro, textTransform: 'uppercase', fontFamily: 'Inter_700Bold' },
+  pill: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
+  pillText: { ...typography.micro, textTransform: 'uppercase', fontFamily: 'Inter_700Bold' },
   title: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   meta: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   bid: { ...typography.bodyStrong, color: colors.primary, marginTop: spacing.xs },

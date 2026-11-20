@@ -13,8 +13,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createRfq, type RfqItemInput } from '@/features/rfq/api';
-import { Field, FormError, PrimaryButton } from '@/features/auth/components';
-import { colors, radius, spacing, typography } from '@/theme';
+import { Field, FormError } from '@/features/auth/components';
+import { Button } from '@/components/Button';
+import { colors, radius, shadows, spacing, typography } from '@/theme';
+import * as Haptics from 'expo-haptics';
 import { ScreenColumn } from '@/components/Responsive';
 
 type Row = {
@@ -79,14 +81,25 @@ export default function NewRfqScreen() {
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ScreenColumn>
-        <Text style={styles.hint}>
-          Describe what you need — verified suppliers will send you quotes to compare.
-        </Text>
+        {/* RFQ hero — stitch 13 */}
+        <View style={styles.hero}>
+          <View style={styles.heroPill}>
+            <Ionicons name="document-text" size={11} color={colors.secondaryLight} />
+            <Text style={styles.heroPillText}>REQUEST FOR QUOTE</Text>
+          </View>
+          <Text style={styles.heroTitle}>Post your BOQ to verified suppliers</Text>
+          <Text style={styles.heroMeta}>
+            Upload your bill of quantities — Tier-1 depots respond with itemized quotes under escrow terms.
+          </Text>
+        </View>
 
         {rows.map((row, idx) => (
           <View key={idx} style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Item {idx + 1}</Text>
+              <View style={styles.itemBadge}>
+                <Ionicons name="cube-outline" size={13} color={colors.secondary} />
+                <Text style={styles.cardTitle}>Material Item {idx + 1}</Text>
+              </View>
               {rows.length > 1 && (
                 <Pressable
                   onPress={() => setRows((rs) => rs.filter((_, i) => i !== idx))}
@@ -131,25 +144,60 @@ export default function NewRfqScreen() {
           </View>
         ))}
 
-        <Pressable style={styles.addRow} onPress={() => setRows((rs) => [...rs, emptyRow()])}>
-          <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-          <Text style={styles.addRowText}>Add another item</Text>
+        <Pressable style={styles.addRow} onPress={() => {
+          Haptics.selectionAsync();
+          setRows((rs) => [...rs, emptyRow()]);
+        }}>
+          <Ionicons name="add-circle-outline" size={20} color={colors.secondary} />
+          <Text style={styles.addRowText}>Add another material item</Text>
         </Pressable>
 
+        <View style={styles.escrowNote}>
+          <Ionicons name="shield-checkmark" size={14} color={colors.secondary} />
+          <Text style={styles.escrowNoteText}>
+            Quotes arrive under CBN-escrow terms — funds only release on verified site delivery.
+          </Text>
+        </View>
+
         <FormError message={error} />
-        <PrimaryButton label="Submit request" onPress={submit} busy={busy} />
               </ScreenColumn>
 </ScrollView>
+      <View style={styles.footer}>
+        <ScreenColumn pad={false}>
+          <Button
+            title={busy ? 'Broadcasting to suppliers…' : `Submit RFQ · ${rows.length} item${rows.length === 1 ? '' : 's'}`}
+            onPress={submit}
+            loading={busy}
+          />
+        </ScreenColumn>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing['4xl'] },
-  hint: { ...typography.body, color: colors.textMuted, marginBottom: spacing.lg, lineHeight: 21 },
+  hero: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(47,191,113,0.15)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  heroPillText: { ...typography.micro, color: colors.secondaryLight, letterSpacing: 0.5 },
+  heroTitle: { ...typography.h2, fontSize: 18, color: colors.background, marginTop: spacing.sm },
+  heroMeta: { ...typography.caption, color: 'rgba(255,255,255,0.65)', marginTop: spacing.xs },
   card: {
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...shadows.card,
     borderRadius: radius.lg,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -161,6 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  itemBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   cardTitle: { ...typography.bodyStrong, color: colors.text },
   split: { flexDirection: 'row', gap: spacing.md },
   addRow: {
@@ -169,7 +218,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     padding: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+    borderRadius: radius.lg,
   },
-  addRowText: { ...typography.bodyStrong, color: colors.primary },
+  addRowText: { ...typography.bodyStrong, color: colors.secondary },
+  escrowNote: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+    backgroundColor: colors.secondarySoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  escrowNoteText: { ...typography.caption, color: colors.text, flex: 1 },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.navy,
+  },
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +18,6 @@ import { Stepper } from '@/components/Stepper';
 import { ScreenColumn } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { formatNaira } from '@/utils/money';
-import { useToast } from '@/components/Toast';
 
 function OfferCard({
   offer,
@@ -27,6 +26,7 @@ function OfferCard({
   unifiedProductId,
   image,
   best,
+  onAdded,
 }: {
   offer: VendorOffer;
   qty: number;
@@ -34,10 +34,10 @@ function OfferCard({
   unifiedProductId: string;
   image: string | null;
   best?: boolean;
+  onAdded?: (quantity: number, unitPrice: number) => void;
 }) {
   const router = useRouter();
   const { addToCart } = useCart();
-  const toast = useToast();
   const [busy, setBusy] = useState(false);
 
   const goToStore = async () => {
@@ -60,7 +60,7 @@ function OfferCard({
     setBusy(false);
     if (ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.show('success', 'Added to haulage queue');
+      onAdded?.(quantity, offer.price ?? 0);
     }
   };
 
@@ -131,6 +131,7 @@ export default function ProductScreen() {
   const deals = useProductDeals(product.data?.id);
   const wishlist = useWishlistToggle(session?.user.id);
   const [qty, setQty] = useState(1);
+  const [staged, setStaged] = useState<{ quantity: number; unitPrice: number } | null>(null);
 
   if (product.isLoading)
     return <View style={styles.screen}><View style={{ padding: spacing.lg }}><DetailSkeleton /></View></View>;
@@ -321,6 +322,7 @@ export default function ProductScreen() {
                 unifiedProductId={p.id}
                 image={hero}
                 best={bestOffer?.id === o.id}
+                onAdded={(quantity, unitPrice) => setStaged({ quantity, unitPrice })}
               />
             ))
           )}
@@ -358,6 +360,56 @@ export default function ProductScreen() {
           </Pressable>
         </View>
       )}
+
+      {/* Cart preview sheet — stitch 06 */}
+      <Modal
+        visible={!!staged}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setStaged(null)}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => setStaged(null)} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHead}>
+            <View style={styles.sheetCheck}>
+              <Ionicons name="checkmark" size={18} color={colors.textOnPrimary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sheetTitle}>Added to haulage queue</Text>
+              {staged && (
+                <Text style={styles.sheetMeta}>
+                  {p.name} · {staged.quantity} × {formatNaira(staged.unitPrice)}
+                </Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.sheetLogistics}>
+            <Ionicons name="bus" size={14} color={colors.secondary} />
+            <Text style={styles.sheetLogisticsText}>
+              Consolidated haulage is matched at checkout based on your delivery site.
+            </Text>
+          </View>
+          <View style={styles.sheetActions}>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="Continue Shopping"
+                variant="outline"
+                onPress={() => setStaged(null)}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                title="View Cart"
+                onPress={() => {
+                  setStaged(null);
+                  router.push('/cart' as any);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -503,6 +555,44 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   secondaryText: { ...typography.captionStrong, color: colors.secondary },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
+  sheet: {
+    backgroundColor: colors.surfaceRaised,
+    borderTopLeftRadius: radius['2xl'],
+    borderTopRightRadius: radius['2xl'],
+    padding: spacing.lg,
+    paddingBottom: spacing['2xl'],
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  sheetCheck: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetTitle: { ...typography.bodyStrong, color: colors.text },
+  sheetMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  sheetLogistics: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+    backgroundColor: colors.secondarySoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  sheetLogisticsText: { ...typography.caption, color: colors.text, flex: 1 },
+  sheetActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
   stickyBar: {
     position: 'absolute',
     bottom: 0,

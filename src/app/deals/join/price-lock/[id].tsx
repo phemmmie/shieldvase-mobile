@@ -29,6 +29,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 import { formatNaira } from '@/utils/money';
 import { supabase } from '@/api/supabase';
 import { ScreenColumn } from '@/components/Responsive';
+import { StepProgress } from '@/components/StepProgress';
 
 type Step = 'quantity' | 'delivery' | 'pay' | 'confirming' | 'done';
 
@@ -231,6 +232,12 @@ export default function JoinPriceLockScreen() {
       <Stack.Screen
         options={{ title: paymentStep === 'balance' ? 'Pay balance' : 'Lock price' }}
       />
+      {step !== 'done' && step !== 'confirming' && resumeMode === 'none' && (
+        <StepProgress
+          steps={['Quantity', 'Delivery', 'Pay']}
+          current={step === 'quantity' ? 0 : step === 'delivery' ? 1 : 2}
+        />
+      )}
 
       {step !== 'done' && step !== 'confirming' && (
         <>

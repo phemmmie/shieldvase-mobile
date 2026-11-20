@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRfqDetail } from '@/features/rfq/queries';
 import { awardRfqItems, displayUnitPrice } from '@/features/rfq/api';
 import { EmptyState, ErrorState, LoadingState } from '@/components/States';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { formatNaira } from '@/utils/money';
 import { ScreenColumn } from '@/components/Responsive';
 
@@ -76,17 +76,41 @@ export default function RfqDetailScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <ScreenColumn>
       <Stack.Screen options={{ title: rfq_number }} />
-      <Text style={styles.number}>{rfq_number}</Text>
-      {!!title && <Text style={styles.title}>{title}</Text>}
-      <Text style={styles.status}>{status.replace('_', ' ')}</Text>
+      {/* Tender hero — stitch 06a/13 */}
+      <View style={styles.hero}>
+        <View style={styles.heroRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroKicker}>TENDER · {rfq_number}</Text>
+            {!!title && <Text style={styles.heroTitle}>{title}</Text>}
+          </View>
+          <View style={styles.heroPill}>
+            <View style={styles.heroDot} />
+            <Text style={styles.heroPillText}>{status.replace('_', ' ').toUpperCase()}</Text>
+          </View>
+        </View>
+        <Text style={styles.heroMeta}>
+          {status === 'open' || status === 'pending'
+            ? 'Broadcast to verified depots — quotes arrive under escrow terms.'
+            : 'Review supplier quotes and award items to build your cart.'}
+        </Text>
+      </View>
 
       <Text style={styles.section}>Your items</Text>
-      {items.map((it) => (
-        <Text key={it.id} style={styles.itemLine}>
-          • {it.product_name} — {it.quantity}
-          {it.unit ? ` ${it.unit}` : ''}
-        </Text>
-      ))}
+      <View style={styles.itemsCard}>
+        {items.map((it, i) => (
+          <View key={it.id} style={[styles.itemRow, i > 0 && styles.itemRowBorder]}>
+            <View style={styles.itemIcon}>
+              <Ionicons name="cube-outline" size={14} color={colors.secondary} />
+            </View>
+            <Text style={styles.itemLine}>
+              {it.product_name}
+            </Text>
+            <Text style={styles.itemQty}>
+              {it.quantity}{it.unit ? ` ${it.unit}` : ''}
+            </Text>
+          </View>
+        ))}
+      </View>
 
       <Text style={styles.section}>
         Quotes {bids.length ? `(${bids.length})` : ''}
@@ -172,25 +196,53 @@ export default function RfqDetailScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg, paddingBottom: spacing['4xl'] },
-  number: { ...typography.h2, color: colors.text },
-  title: { ...typography.body, color: colors.textMuted, marginTop: spacing.xs },
-  status: {
-    ...typography.micro,
-    color: colors.secondary,
-    fontFamily: 'Inter_700Bold',
-    textTransform: 'uppercase',
-    marginTop: spacing.xs,
+  hero: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
   },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  heroKicker: { ...typography.micro, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.8 },
+  heroTitle: { ...typography.h2, fontSize: 17, color: colors.background, marginTop: 2 },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(47,191,113,0.15)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  heroDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.secondaryLight },
+  heroPillText: { ...typography.micro, color: colors.secondaryLight, letterSpacing: 0.4 },
+  heroMeta: { ...typography.caption, color: 'rgba(255,255,255,0.65)', marginTop: spacing.sm },
+  itemsCard: {
+    ...shadows.card,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+  itemRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  itemIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.sm,
+    backgroundColor: colors.secondarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemQty: { ...typography.captionStrong, color: colors.textMuted },
   section: {
     ...typography.h2,
     color: colors.text,
     marginTop: spacing['2xl'],
     marginBottom: spacing.sm,
   },
-  itemLine: { ...typography.body, color: colors.text, paddingVertical: 2 },
+  itemLine: { ...typography.body, color: colors.text, flex: 1 },
   compareCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...shadows.card,
     borderRadius: radius.lg,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -217,12 +269,15 @@ const styles = StyleSheet.create({
   bidPrice: { ...typography.bodyStrong, color: colors.primary },
   bidTotal: { ...typography.micro, color: colors.textMuted },
   awardBtn: {
-    height: 48,
+    height: 52,
     borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    ...shadows.raised,
   },
   awardText: { ...typography.bodyStrong, color: colors.textOnPrimary },
 });

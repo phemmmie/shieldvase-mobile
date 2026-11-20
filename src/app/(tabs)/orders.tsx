@@ -1,5 +1,6 @@
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useOrders } from '@/features/orders/queries';
@@ -49,15 +50,30 @@ export default function OrdersScreen() {
           <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(220)}>
           <Pressable style={styles.card} onPress={() => router.push(`/order/${o.id}`)}>
             <View style={styles.row}>
-              <Text style={styles.orderNo}>{o.order_number}</Text>
-              <Text
+              <View style={styles.noRow}>
+                <View style={styles.cardIcon}>
+                  <Ionicons name="receipt-outline" size={14} color={colors.secondary} />
+                </View>
+                <Text style={styles.orderNo}>{o.order_number}</Text>
+              </View>
+              <View
                 style={[
-                  styles.payment,
-                  { color: STATUS_COLORS[o.payment_status] ?? colors.textMuted },
+                  styles.pill,
+                  {
+                    backgroundColor:
+                      (STATUS_COLORS[o.payment_status] ?? colors.textMuted) + '1A',
+                  },
                 ]}
               >
-                {o.payment_status}
-              </Text>
+                <Text
+                  style={[
+                    styles.pillText,
+                    { color: STATUS_COLORS[o.payment_status] ?? colors.textMuted },
+                  ]}
+                >
+                  {o.payment_status}
+                </Text>
+              </View>
             </View>
             <View style={styles.row}>
               <Text style={styles.meta}>
@@ -83,8 +99,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  noRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  cardIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.sm,
+    backgroundColor: colors.secondarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   orderNo: { ...typography.bodyStrong, color: colors.text },
-  payment: { ...typography.micro, textTransform: 'uppercase', fontFamily: 'Inter_700Bold' },
+  pill: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
+  pillText: { ...typography.micro, textTransform: 'uppercase', fontFamily: 'Inter_700Bold' },
   meta: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   total: { ...typography.bodyStrong, color: colors.primary, marginTop: spacing.xs },
 });
