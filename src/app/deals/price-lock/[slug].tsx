@@ -14,6 +14,7 @@ import { ScreenColumn } from '@/components/Responsive';
 import { colors, radius, spacing, typography } from '@/theme';
 import { formatNaira } from '@/utils/money';
 import { buildProductParam } from '@/utils/productUrl';
+import { LockCertificate } from '@/features/deals/LockCertificate';
 
 export default function PriceLockLandingScreen() {
   useDealRealtimeSync();
@@ -151,6 +152,18 @@ export default function PriceLockLandingScreen() {
                   : 'You have a pending reservation — complete payment to lock your price.'}
             </Text>
           </View>
+        )}
+        {p && p.payment_status !== 'pending' && (
+          <LockCertificate
+            reference={p.id}
+            title={deal.title}
+            lockedPrice={Number(deal.locked_price ?? 0)}
+            quantity={p.locked_quantity ?? 1}
+            unit={null}
+            days={deal.lock_duration_days ?? 30}
+            createdAt={(p as any).created_at}
+            paymentStatus={p.payment_status}
+          />
         )}
 
         <View style={styles.actions}>

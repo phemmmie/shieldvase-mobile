@@ -30,6 +30,7 @@ import { formatNaira } from '@/utils/money';
 import { supabase } from '@/api/supabase';
 import { ScreenColumn } from '@/components/Responsive';
 import { StepProgress } from '@/components/StepProgress';
+import { LockCertificate } from '@/features/deals/LockCertificate';
 
 type Step = 'quantity' | 'delivery' | 'pay' | 'confirming' | 'done';
 
@@ -385,9 +386,20 @@ export default function JoinPriceLockScreen() {
 
       {(step === 'done' || paid || resumeMode === ('done' as any)) && (
         <View style={styles.center}>
-          <Ionicons name="checkmark-circle" size={72} color={colors.secondary} />
+          <Ionicons name="checkmark-circle" size={64} color={colors.secondary} />
           <Text style={styles.confirmTitle}>{successTitle}</Text>
           <Text style={styles.confirmBody}>{successBody}</Text>
+          {/* Price-lock certificate — stitch 14b */}
+          <LockCertificate
+            reference={activeParticipantId ?? deal.id}
+            title={deal.title}
+            lockedPrice={Number(deal.locked_price ?? 0)}
+            quantity={lockQty}
+            unit={null}
+            days={deal.lock_duration_days ?? 30}
+            createdAt={(existing as any)?.created_at}
+            paymentStatus={existing?.payment_status ?? (paid ? 'fully_paid' : 'deposit_paid')}
+          />
           <Pressable style={styles.primary} onPress={() => router.replace('/deals')}>
             <Text style={styles.primaryText}>View my deals</Text>
           </Pressable>
