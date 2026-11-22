@@ -43,6 +43,20 @@
           "backgroundColor": "#2459DB"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "f4baee01-bfc1-492e-bc0d-2daa99abefc3"
+      }
+    },
+    "owner": "benfemi16",
+    "updates": {
+      "url": "https://u.expo.dev/f4baee01-bfc1-492e-bc0d-2daa99abefc3"
+    }
   }
 }

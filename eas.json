@@ -12,7 +12,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://dvkghqvouictqsntppaq.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2a2docXZvdWljdHFzbnRwcGFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyMzE1MTMsImV4cCI6MjA2NTgwNzUxM30.v9ndrFJpIUK6lBrkNejhY5DajF8ZEV1A1itmQ6frRVY",
         "EXPO_PUBLIC_SITE_URL": "https://shieldvase.io"
-      }
+      },
+      "channel": "base"
     },
     "development": {
       "extends": "base",
@@ -47,11 +48,6 @@
         "serviceAccountKeyPath": "./play-store-service-account.json",
         "track": "internal",
         "releaseStatus": "draft"
-      },
-      "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": ""
       }
     }
   }
