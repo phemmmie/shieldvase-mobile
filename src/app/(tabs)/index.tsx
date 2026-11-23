@@ -17,12 +17,14 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/AuthContext';
-import { useCategories } from '@/features/catalog/queries';
+import { useCategories, useFeaturedProducts } from '@/features/catalog/queries';
 import { supabase } from '@/api/supabase';
 import { ErrorState } from '@/components/States';
 import { RowSkeleton } from '@/components/Skeleton';
 import { ScreenColumn, CONTENT_MAX_WIDTH } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { formatNaira } from '@/utils/money';
+import { buildProductParam } from '@/utils/productUrl';
 
 // ── Web homepage parity — content mirrors shieldvase.io section for section ──
 
@@ -55,37 +57,34 @@ const SERVICES = [
   { icon: 'phone-portrait-outline', title: 'Industry Digital First', body: 'Track orders in real-time with our app and web platform' },
 ] as const;
 
-const FAQS = [
+const FAQS: { icon: keyof typeof Ionicons.glyphMap; tint: string; q: string; a: string }[] = [
   {
+    icon: 'settings-outline',
+    tint: '#E42D40',
     q: 'What is the difference between mild steel and stainless steel?',
     a: 'Mild steel is an iron alloy with low carbon content, making it softer and more malleable. Stainless steel contains chromium, making it more resistant to corrosion and rust. Stainless steel is typically more expensive but offers better durability in harsh environments.',
   },
   {
+    icon: 'settings-outline',
+    tint: '#007749',
     q: 'How do I choose the right type of metal for my project?',
     a: 'Consider factors like the environment (indoor/outdoor), required strength, budget, and specific application. For example, aluminum is lightweight and corrosion-resistant, while steel offers superior strength. Contact our experts for personalized recommendations.',
   },
   {
+    icon: 'construct-outline',
+    tint: '#FDB347',
     q: 'What are the standard sizes available for metal sheets?',
     a: 'Metal sheets typically come in standard sizes of 4x8 feet, with thicknesses ranging from 0.5mm to 12mm. Custom sizes are available upon request. The choice depends on your specific application and requirements.',
   },
   {
+    icon: 'business-outline',
+    tint: '#0067A5',
     q: 'How are metals priced in the market?',
     a: 'Metal prices are determined by factors including global market rates, quantity ordered, grade/quality, processing requirements, and transportation costs. Prices are usually quoted per ton or per square meter for sheets.',
   },
 ];
 
 const SITE = 'https://shieldvase.io';
-
-// TopNavbar marketing links — the web's hamburger-menu items, surfaced as a
-// slim scrollable rail on mobile (same content, mobile-friendly form).
-const NAV_LINKS: { label: string; url?: string; route?: string }[] = [
-  { label: 'Prices', url: `${SITE}/prices` },
-  { label: 'Podcast', url: `${SITE}/podcast` },
-  { label: 'About Us', url: `${SITE}/about` },
-  { label: 'Contact', url: `${SITE}/contact` },
-  { label: 'Logistics Hub', url: `${SITE}/logistics-hub` },
-  { label: 'RFQ', route: '/rfq' },
-];
 
 const WHATSAPP_LINK = `https://wa.me/2347051277149?text=${encodeURIComponent(
   "Hi, I'd like to place an order",
@@ -142,8 +141,13 @@ export default function HomeScreen() {
   const railPad = Math.max((windowWidth - CONTENT_MAX_WIDTH) / 2 + spacing.md, spacing.md);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const categories = useCategories();
+  const featured = useFeaturedProducts();
   const episodes = usePodcastEpisodes();
   const placeholders = useSearchPlaceholders();
+
+  // Product marquee parity: web maps each category's representative
+  // products into cards showing {category name, product, price}.
+  const categoryNameById = new Map((categories.data ?? []).map((c) => [c.id, c.name]));
 
   const [heroIndex, setHeroIndex] = useState(0);
   const [tagIndex, setTagIndex] = useState(0);
@@ -182,52 +186,30 @@ export default function HomeScreen() {
     >
       {/* ── Category nav bar — mirrors MainNavbar (dark navy rail) ── */}
       <View style={styles.catNav}>
-        <View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.catNavRail, { paddingHorizontal: railPad }]}
-          >
-            {(categories.data ?? []).map((c) => (
-              <Link key={c.id} href={`/category/${c.slug}`} asChild>
-                <Pressable
-                  style={({ pressed }) => [styles.catNavItem, pressed && { opacity: 0.75 }]}
-                >
-                  <Ionicons name="cube-outline" size={14} color="rgba(255,255,255,0.9)" />
-                  <Text style={styles.catNavText} numberOfLines={1}>
-                    {c.name}
-                  </Text>
-                </Pressable>
-              </Link>
-            ))}
-          </ScrollView>
-          {/* Right-edge fade — signals the rail scrolls, like the web's snap rail */}
-          <LinearGradient
-            pointerEvents="none"
-            colors={['rgba(26,31,44,0)', 'rgba(26,31,44,1)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.catNavFade}
-          />
-        </View>
-        {/* Marketing links — web TopNavbar menu parity */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.navLinksRail, { paddingHorizontal: railPad }]}
+          contentContainerStyle={[styles.catNavRail, { paddingHorizontal: railPad }]}
         >
-          {NAV_LINKS.map((l) => (
-            <Pressable
-              key={l.label}
-              onPress={() =>
-                l.route ? router.push(l.route as any) : Linking.openURL(l.url!)
-              }
-              hitSlop={6}
-            >
-              <Text style={styles.navLinkText}>{l.label}</Text>
-            </Pressable>
+          {(categories.data ?? []).map((c) => (
+            <Link key={c.id} href={`/category/${c.slug}`} asChild>
+              <Pressable
+                style={({ pressed }) => [styles.catNavItem, pressed && { opacity: 0.75 }]}
+              >
+                <Ionicons name="cube-outline" size={14} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.catNavText}>{c.name}</Text>
+              </Pressable>
+            </Link>
           ))}
         </ScrollView>
+        {/* Right-edge fade — signals the rail scrolls, like the web's snap rail */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(26,31,44,0)', 'rgba(26,31,44,1)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.catNavFade}
+        />
       </View>
 
       {/* ── WhatsApp banner — mirrors WhatsAppBotBanner ── */}
@@ -368,7 +350,7 @@ export default function HomeScreen() {
       </View>
 
       <ScreenColumn>
-        {/* ── Categories — mirrors ProductCategories ── */}
+        {/* ── Categories — mirrors ProductCategories + ProductMarqueeSlider ── */}
         <View style={styles.sectionHeadCenter}>
           <Text style={styles.sectionTitle}>Explore Our Product Categories</Text>
           <Text style={styles.sectionSub}>
@@ -376,31 +358,57 @@ export default function HomeScreen() {
             needs
           </Text>
         </View>
-        {categories.isLoading ? (
+        {featured.isLoading ? (
           <RowSkeleton />
-        ) : categories.isError ? (
-          <ErrorState onRetry={() => categories.refetch()} />
+        ) : featured.isError ? (
+          <ErrorState onRetry={() => featured.refetch()} />
         ) : (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.catRail}
+            contentContainerStyle={styles.marqueeRail}
           >
-            {(categories.data ?? []).map((c) => (
-              <Link key={c.id} href={`/category/${c.slug}`} asChild>
-                <Pressable style={styles.catChip}>
-                  {!!c.image ? (
-                    <Image source={{ uri: c.image }} style={styles.catImg} contentFit="cover" />
+            {(featured.data ?? []).map((p) => (
+              <View key={p.id} style={styles.marqueeCard}>
+                <View style={styles.marqueeImgWrap}>
+                  {p.images?.[0] ? (
+                    <Image
+                      source={{ uri: p.images[0] }}
+                      style={styles.marqueeImg}
+                      contentFit="contain"
+                    />
                   ) : (
-                    <View style={[styles.catImg, styles.catImgFallback]}>
-                      <Ionicons name="cube-outline" size={13} color={colors.textMuted} />
+                    <View style={[styles.marqueeImg, styles.marqueeImgFallback]}>
+                      <Ionicons name="cube-outline" size={30} color={colors.textFaint} />
                     </View>
                   )}
-                  <Text numberOfLines={1} style={styles.catName}>
-                    {c.name}
+                  {/* Black/60 bottom overlay — same as web card */}
+                  <View style={styles.marqueeOverlay}>
+                    <Text style={styles.marqueeCat} numberOfLines={1}>
+                      {categoryNameById.get(p.category_id ?? '') ?? 'Materials'}
+                    </Text>
+                    <Text style={styles.marqueeTitle} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.marqueeBody}>
+                  <Text style={styles.marqueeDesc} numberOfLines={2}>
+                    {p.description || `High-quality ${p.name.toLowerCase()}`}
                   </Text>
-                </Pressable>
-              </Link>
+                  {p.min_price != null && (
+                    <Text style={styles.marqueePrice}>{formatNaira(p.min_price)}</Text>
+                  )}
+                  <Link href={`/product/${buildProductParam(p)}`} asChild>
+                    <Pressable
+                      style={({ pressed }) => [styles.marqueeBtn, pressed && { opacity: 0.8 }]}
+                    >
+                      <Ionicons name="information-circle-outline" size={15} color={colors.primary} />
+                      <Text style={styles.marqueeBtnText}>View Details</Text>
+                    </Pressable>
+                  </Link>
+                </View>
+              </View>
             ))}
           </ScrollView>
         )}
@@ -450,42 +458,64 @@ export default function HomeScreen() {
             </View>
           </Animated.View>
         ))}
+        <Pressable
+          onPress={() => Linking.openURL(`${SITE}/services`)}
+          style={({ pressed }) => [styles.servicesBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.servicesBtnText}>Learn More About Our Services</Text>
+        </Pressable>
 
         {/* ── Podcasts — mirrors RecentPodcastsSection ── */}
         {(episodes.data?.length ?? 0) > 0 && (
           <>
-            <View style={styles.sectionHead}>
+            <View style={styles.podHead}>
+              <Ionicons name="headset-outline" size={24} color="#0FA0CE" />
               <Text style={styles.sectionTitle}>Podcasts on Metal Materials</Text>
-              <Pressable onPress={() => Linking.openURL(`${SITE}/podcast`)} hitSlop={8}>
-                <Text style={styles.seeAll}>See all</Text>
-              </Pressable>
             </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.podRail}
             >
-              {episodes.data!.map((ep) => (
-                <Pressable
-                  key={ep.id}
-                  onPress={() => Linking.openURL(`${SITE}/podcast`)}
-                  style={[styles.podCard, { backgroundColor: ep.color || colors.navy }]}
-                >
-                  <View style={styles.podBadge}>
-                    <Text style={styles.podBadgeText}>{ep.episode_number}</Text>
+              {episodes.data!.map((ep) => {
+                const slug = ep.title
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-')
+                  .replace(/-+/g, '-');
+                return (
+                  <View key={ep.id} style={styles.podCard}>
+                    {/* Colored tile — number top-left, duration bottom-left */}
+                    <View style={[styles.podTile, { backgroundColor: ep.color || colors.navy }]}>
+                      <View style={styles.podTileTop}>
+                        <Ionicons name="headset" size={14} color="#374151" />
+                        <Text style={styles.podNumber}>{ep.episode_number}</Text>
+                      </View>
+                      <View style={styles.podDuration}>
+                        <Ionicons name="time-outline" size={12} color="#374151" />
+                        <Text style={styles.podDurationText}>{ep.duration}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.podBody}>
+                      <Text numberOfLines={2} style={styles.podTitle}>
+                        {ep.title}
+                      </Text>
+                      <View style={styles.podMeta}>
+                        <Ionicons name="play" size={11} color={colors.textMuted} />
+                        <Text numberOfLines={1} style={styles.podMetaText}>
+                          {ep.host}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => Linking.openURL(`${SITE}/podcast/${slug}`)}
+                        style={({ pressed }) => [styles.podBtn, pressed && { opacity: 0.85 }]}
+                      >
+                        <Ionicons name="headset" size={13} color="#FFFFFF" />
+                        <Text style={styles.podBtnText}>Listen Now</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                  <Text numberOfLines={3} style={styles.podTitle}>
-                    {ep.title}
-                  </Text>
-                  <View style={styles.podMeta}>
-                    <Ionicons name="mic-outline" size={11} color="rgba(255,255,255,0.8)" />
-                    <Text style={styles.podMetaText}>
-                      {ep.host}
-                      {ep.duration ? ` · ${ep.duration}` : ''}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
+                );
+              })}
             </ScrollView>
           </>
         )}
@@ -500,6 +530,7 @@ export default function HomeScreen() {
           return (
             <Pressable key={f.q} onPress={() => setOpenFaq(open ? null : i)} style={styles.faqCard}>
               <View style={styles.faqRow}>
+                <Ionicons name={f.icon} size={20} color={f.tint} />
                 <Text style={styles.faqQ}>{f.q}</Text>
                 <Ionicons
                   name={open ? 'chevron-up' : 'chevron-down'}
@@ -620,7 +651,8 @@ export default function HomeScreen() {
           </Pressable>
 
           <Text style={styles.copyright}>
-            © {new Date().getFullYear()} ShieldVase. All rights reserved.
+            © {new Date().getFullYear()} shieldvase.io — a product of Optiforge Limited. All
+            rights reserved.
           </Text>
         </ScreenColumn>
       </View>
@@ -648,24 +680,16 @@ const styles = StyleSheet.create({
   catNavItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 6,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   catNavText: {
     ...typography.caption,
     color: 'rgba(255,255,255,0.9)',
     fontWeight: '500',
-    maxWidth: 150,
   },
-  navLinksRail: {
-    alignItems: 'center',
-    gap: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  navLinkText: { ...typography.micro, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
 
   whatsappStrip: {
     flexDirection: 'row',
@@ -797,20 +821,43 @@ const styles = StyleSheet.create({
   },
   seeAll: { ...typography.captionStrong, color: colors.primary },
 
-  catRail: { gap: spacing.sm },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceRaised,
+  marqueeRail: { gap: spacing.md, paddingBottom: spacing.xs },
+  marqueeCard: {
+    width: 250,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    overflow: 'hidden',
     ...shadows.card,
   },
-  catImg: { width: 24, height: 24, borderRadius: 12 },
-  catImgFallback: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  catName: { ...typography.body, color: colors.text, maxWidth: 120 },
+  marqueeImgWrap: { height: 170, backgroundColor: '#FFFFFF', position: 'relative' },
+  marqueeImg: { width: '100%', height: '100%' },
+  marqueeImgFallback: { alignItems: 'center', justifyContent: 'center' },
+  marqueeOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  marqueeCat: { ...typography.micro, color: '#FFFFFF', fontWeight: '500' },
+  marqueeTitle: { ...typography.bodyStrong, color: '#FFFFFF' },
+  marqueeBody: { padding: spacing.md },
+  marqueeDesc: { ...typography.caption, color: colors.textMuted, minHeight: 30 },
+  marqueePrice: { ...typography.bodyStrong, color: colors.primary, marginTop: spacing.xs },
+  marqueeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 9,
+    marginTop: spacing.sm,
+  },
+  marqueeBtnText: { ...typography.caption, color: colors.primary, fontWeight: '600' },
 
   sectionWhite: { marginTop: spacing.xs },
   diffCard: {
@@ -850,26 +897,58 @@ const styles = StyleSheet.create({
   serviceTitle: { ...typography.bodyStrong, color: colors.text },
   serviceText: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
 
-  podRail: { gap: spacing.sm },
+  podHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  podRail: { gap: spacing.md, paddingBottom: spacing.xs },
   podCard: {
-    width: 190,
+    width: 230,
+    backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
-    padding: spacing.md,
-    minHeight: 130,
-    justifyContent: 'space-between',
+    overflow: 'hidden',
+    ...shadows.card,
   },
-  podBadge: {
+  podTile: { height: 110, padding: spacing.md },
+  podTileTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  podNumber: { ...typography.bodyStrong, color: '#374151' },
+  podDuration: {
+    position: 'absolute',
+    bottom: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  podDurationText: { ...typography.micro, color: '#374151' },
+  podBody: { padding: spacing.md },
+  podTitle: { ...typography.bodyStrong, color: colors.text, marginBottom: 6 },
+  podMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: spacing.sm },
+  podMetaText: { ...typography.micro, color: colors.textMuted, flex: 1 },
+  podBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#0FA0CE',
+    borderRadius: radius.md,
+    paddingVertical: 9,
+  },
+  podBtnText: { ...typography.caption, color: '#FFFFFF', fontWeight: '700' },
+
+  servicesBtn: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 11,
+    marginTop: spacing.sm,
   },
-  podBadgeText: { ...typography.micro, color: '#FFFFFF', fontWeight: '700' },
-  podTitle: { ...typography.bodyStrong, color: '#FFFFFF', flex: 1 },
-  podMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.sm },
-  podMetaText: { ...typography.micro, color: 'rgba(255,255,255,0.8)', flexShrink: 1 },
+  servicesBtnText: { ...typography.bodyStrong, color: colors.primary },
 
   faqHead: {
     flexDirection: 'row',
