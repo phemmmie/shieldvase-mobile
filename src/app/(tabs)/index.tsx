@@ -73,10 +73,22 @@ const FAQS = [
   },
 ];
 
+const SITE = 'https://shieldvase.io';
+
+// TopNavbar marketing links — the web's hamburger-menu items, surfaced as a
+// slim scrollable rail on mobile (same content, mobile-friendly form).
+const NAV_LINKS: { label: string; url?: string; route?: string }[] = [
+  { label: 'Prices', url: `${SITE}/prices` },
+  { label: 'Podcast', url: `${SITE}/podcast` },
+  { label: 'About Us', url: `${SITE}/about` },
+  { label: 'Contact', url: `${SITE}/contact` },
+  { label: 'Logistics Hub', url: `${SITE}/logistics-hub` },
+  { label: 'RFQ', route: '/rfq' },
+];
+
 const WHATSAPP_LINK = `https://wa.me/2347051277149?text=${encodeURIComponent(
   "Hi, I'd like to place an order",
 )}`;
-const SITE = 'https://shieldvase.io';
 
 interface PodcastEpisode {
   id: string;
@@ -164,6 +176,46 @@ export default function HomeScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* ── Category nav bar — mirrors MainNavbar (dark navy rail) ── */}
+      <View style={styles.catNav}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.catNavRail}
+        >
+          {(categories.data ?? []).map((c) => (
+            <Link key={c.id} href={`/category/${c.slug}`} asChild>
+              <Pressable
+                style={({ pressed }) => [styles.catNavItem, pressed && { opacity: 0.75 }]}
+              >
+                <Ionicons name="cube-outline" size={14} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.catNavText} numberOfLines={1}>
+                  {c.name}
+                </Text>
+              </Pressable>
+            </Link>
+          ))}
+        </ScrollView>
+        {/* Marketing links — web TopNavbar menu parity */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.navLinksRail}
+        >
+          {NAV_LINKS.map((l) => (
+            <Pressable
+              key={l.label}
+              onPress={() =>
+                l.route ? router.push(l.route as any) : Linking.openURL(l.url!)
+              }
+              hitSlop={6}
+            >
+              <Text style={styles.navLinkText}>{l.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* ── WhatsApp banner — mirrors WhatsAppBotBanner ── */}
       <Pressable
         onPress={() => Linking.openURL(WHATSAPP_LINK)}
@@ -505,9 +557,7 @@ export default function HomeScreen() {
             <Pressable
               key={l.label}
               onPress={() =>
-                'route' in l && l.route
-                  ? router.push(l.route as any)
-                  : Linking.openURL(l.url!)
+                l.route ? router.push(l.route as any) : Linking.openURL(l.url!)
               }
               style={styles.footerLink}
             >
@@ -567,6 +617,30 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#FDF5E6' },
   content: { paddingBottom: spacing['4xl'] },
+
+  catNav: { backgroundColor: colors.navy },
+  catNavRail: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  catNavItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
+  },
+  catNavText: { ...typography.caption, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
+  navLinksRail: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  navLinkText: { ...typography.micro, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
 
   whatsappStrip: {
     flexDirection: 'row',
