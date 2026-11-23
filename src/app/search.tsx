@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -81,7 +81,8 @@ function ResultCard({ product, index }: { product: ProductSummary; index: number
 }
 
 export default function SearchScreen() {
-  const [term, setTerm] = useState('');
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [term, setTerm] = useState(typeof q === 'string' ? q : '');
   const [sort, setSort] = useState<SortKey>('relevance');
   const results = useProductSearch(term);
   const categories = useCategories();
