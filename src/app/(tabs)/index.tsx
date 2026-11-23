@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,7 +21,7 @@ import { useCategories } from '@/features/catalog/queries';
 import { supabase } from '@/api/supabase';
 import { ErrorState } from '@/components/States';
 import { RowSkeleton } from '@/components/Skeleton';
-import { ScreenColumn } from '@/components/Responsive';
+import { ScreenColumn, CONTENT_MAX_WIDTH } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 
 // ── Web homepage parity — content mirrors shieldvase.io section for section ──
@@ -136,6 +137,9 @@ const useSearchPlaceholders = () =>
 export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  // Align rail content to the centered column on wide screens, page edge on phones.
+  const railPad = Math.max((windowWidth - CONTENT_MAX_WIDTH) / 2 + spacing.md, spacing.md);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const categories = useCategories();
   const episodes = usePodcastEpisodes();
@@ -178,29 +182,39 @@ export default function HomeScreen() {
     >
       {/* ── Category nav bar — mirrors MainNavbar (dark navy rail) ── */}
       <View style={styles.catNav}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.catNavRail}
-        >
-          {(categories.data ?? []).map((c) => (
-            <Link key={c.id} href={`/category/${c.slug}`} asChild>
-              <Pressable
-                style={({ pressed }) => [styles.catNavItem, pressed && { opacity: 0.75 }]}
-              >
-                <Ionicons name="cube-outline" size={14} color="rgba(255,255,255,0.9)" />
-                <Text style={styles.catNavText} numberOfLines={1}>
-                  {c.name}
-                </Text>
-              </Pressable>
-            </Link>
-          ))}
-        </ScrollView>
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[styles.catNavRail, { paddingHorizontal: railPad }]}
+          >
+            {(categories.data ?? []).map((c) => (
+              <Link key={c.id} href={`/category/${c.slug}`} asChild>
+                <Pressable
+                  style={({ pressed }) => [styles.catNavItem, pressed && { opacity: 0.75 }]}
+                >
+                  <Ionicons name="cube-outline" size={14} color="rgba(255,255,255,0.9)" />
+                  <Text style={styles.catNavText} numberOfLines={1}>
+                    {c.name}
+                  </Text>
+                </Pressable>
+              </Link>
+            ))}
+          </ScrollView>
+          {/* Right-edge fade — signals the rail scrolls, like the web's snap rail */}
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(26,31,44,0)', 'rgba(26,31,44,1)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.catNavFade}
+          />
+        </View>
         {/* Marketing links — web TopNavbar menu parity */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.navLinksRail}
+          contentContainerStyle={[styles.navLinksRail, { paddingHorizontal: railPad }]}
         >
           {NAV_LINKS.map((l) => (
             <Pressable
@@ -622,22 +636,33 @@ const styles = StyleSheet.create({
   catNavRail: {
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  catNavFade: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 40,
   },
   catNavItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    gap: 7,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
     borderRadius: radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  catNavText: { ...typography.caption, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
+  catNavText: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
+    maxWidth: 150,
+  },
   navLinksRail: {
     alignItems: 'center',
     gap: spacing.lg,
-    paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
   },
   navLinkText: { ...typography.micro, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
