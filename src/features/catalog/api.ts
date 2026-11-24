@@ -35,6 +35,7 @@ export type VendorOffer = {
   min_order_quantity: number | null;
   lead_time_days: number | null;
   available_locations: unknown;
+  manufacturer: string | null;
 };
 
 export async function fetchCategories(): Promise<Category[]> {
@@ -134,7 +135,7 @@ export async function fetchVendorOffers(unifiedProductId: string): Promise<Vendo
   const { data: vps, error } = await supabase
     .from('vendor_products')
     .select(
-      'id, vendor_id, price, price_unit, stock_quantity, min_order_quantity, lead_time_days, available_locations',
+      'id, vendor_id, price, price_unit, stock_quantity, min_order_quantity, lead_time_days, available_locations, manufacturer',
     )
     .eq('unified_product_id', unifiedProductId)
     .eq('status', 'active')

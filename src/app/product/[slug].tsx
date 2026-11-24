@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useProduct, useVendorOffers } from '@/features/catalog/queries';
+import { useCategories, useCategoryProducts, useProduct, useVendorOffers } from '@/features/catalog/queries';
 import { useProductDeals } from '@/features/deals/queries';
 import { useWishlistToggle } from '@/features/wishlist/queries';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -18,6 +18,7 @@ import { Stepper } from '@/components/Stepper';
 import { ScreenColumn } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { formatNaira } from '@/utils/money';
+import { buildProductParam } from '@/utils/productUrl';
 
 function OfferCard({
   offer,
@@ -68,7 +69,7 @@ function OfferCard({
     <View style={[styles.offer, best && styles.offerBest]}>
       {best && (
         <View style={styles.bestBadge}>
-          <Text style={styles.bestBadgeText}>LOWEST LANDED COST</Text>
+          <Text style={styles.bestBadgeText}>LOWEST</Text>
         </View>
       )}
       <View style={styles.offerHead}>
@@ -80,7 +81,15 @@ function OfferCard({
             </Text>
             <Ionicons name="checkmark-circle" size={14} color={colors.secondary} />
           </View>
-          <Text style={styles.offerVendorMeta}>Tier-1 Partner · Escrow Backed</Text>
+          {(() => {
+            const locs = locationNames(offer.available_locations);
+            return locs.length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Ionicons name="location-outline" size={11} color={colors.textMuted} />
+                <Text style={styles.offerVendorMeta}>{locs.slice(0, 2).join(', ')}</Text>
+              </View>
+            ) : null;
+          })()}
         </Pressable>
         <View style={styles.offerPriceBox}>
           <Text style={styles.offerPrice}>{formatNaira(offer.price)}</Text>
@@ -120,14 +129,24 @@ function OfferCard({
   );
 }
 
+const locationNames = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v
+        .map((x) => (typeof x === 'string' ? x : (x as any)?.city ?? (x as any)?.name ?? ''))
+        .filter(Boolean)
+    : [];
+
 export default function ProductScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const heroWidth = Math.min(width, 560) - spacing.lg * 2;
   const { session } = useAuth();
+  const { addToCart } = useCart();
   const product = useProduct(slug);
+  const categories = useCategories();
   const offers = useVendorOffers(product.data?.id);
+  const related = useCategoryProducts(product.data?.category_id ?? undefined);
   const deals = useProductDeals(product.data?.id);
   const wishlist = useWishlistToggle(session?.user.id);
   const [qty, setQty] = useState(1);
@@ -161,6 +180,35 @@ export default function ProductScreen() {
     })),
   ];
   const subtotal = bestOffer?.price != null ? bestOffer.price * qty : null;
+  const category = categories.data?.find((c) => c.id === p.category_id);
+  const offerList = offers.data ?? [];
+  const allLocations = Array.from(new Set(offerList.flatMap((o) => locationNames(o.available_locations))));
+  const totalStock = offerList.reduce((n, o) => n + (o.stock_quantity ?? 0), 0);
+  const priceUnit = bestOffer?.price_unit || 'unit';
+  const relatedItems = (related.data ?? []).filter((r) => r.id !== p.id).slice(0, 4);
+
+  const addBestOffer = async (then?: () => void) => {
+    if (!bestOffer) return;
+    const ok = await addToCart({
+      vendor_product_id: bestOffer.id,
+      unified_product_id: p.id,
+      name: p.name,
+      price: bestOffer.price ?? 0,
+      image: hero,
+      quantity: Math.max(qty, bestOffer.min_order_quantity ?? 1),
+    });
+    if (ok) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (then) {
+        then();
+      } else {
+        setStaged({ quantity: Math.max(qty, bestOffer.min_order_quantity ?? 1), unitPrice: bestOffer.price ?? 0 });
+      }
+    }
+  };
+
+  const shareProduct = () =>
+    Share.share({ message: `${p.name} — https://shieldvase.io/${category?.slug ?? 'products'}/${slug}` });
 
   return (
     <View style={styles.screen}>
@@ -232,16 +280,111 @@ export default function ProductScreen() {
             )}
           </View>
 
-          <Text style={styles.kicker}>HEAVY CONSTRUCTION MATERIALS</Text>
-          <Text style={styles.name}>{p.name}</Text>
-          {!!p.brand && <Text style={styles.brand}>{p.brand}</Text>}
+          {/* Badges — web: category badge + brand outline + In Stock */}
+          <View style={styles.badgeRow}>
+            {!!category && (
+              <View style={styles.catBadge}>
+                <Text style={styles.catBadgeText}>{category.name}</Text>
+              </View>
+            )}
+            {!!p.brand && (
+              <View style={styles.brandBadge}>
+                <Text style={styles.brandBadgeText}>{p.brand}</Text>
+              </View>
+            )}
+            {totalStock > 0 && (
+              <View style={styles.inStockBadge}>
+                <Text style={styles.inStockBadgeText}>In Stock</Text>
+              </View>
+            )}
+          </View>
 
-          {bestOffer && (
+          <Text style={styles.name}>{p.name}</Text>
+          {Number(p.rating) > 0 && (
+            <View style={styles.ratingRow}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Ionicons
+                  key={i}
+                  name="star"
+                  size={14}
+                  color={i < Math.round(p.rating) ? '#FACC15' : colors.border}
+                />
+              ))}
+              <Text style={styles.ratingText}>
+                {Number(p.rating).toFixed(1)} ({p.reviews_count || 0} reviews)
+              </Text>
+            </View>
+          )}
+
+          {bestOffer ? (
             <View style={styles.priceRow}>
               <Text style={styles.price}>{formatNaira(bestOffer.price)}</Text>
-              {!!bestOffer.price_unit && <Text style={styles.priceUnit}>/ {bestOffer.price_unit}</Text>}
-              {bestOffer.stock_quantity != null && (
-                <Text style={styles.stock}>In Stock: {bestOffer.stock_quantity}</Text>
+              <Text style={styles.priceUnit}>/ {priceUnit}</Text>
+              {offerList.length > 1 && (
+                <View style={styles.lowestBadge}>
+                  <Text style={styles.lowestBadgeText}>Lowest from {offerList.length} suppliers</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.price}>Price on request</Text>
+          )}
+          {!!bestOffer?.vendor_display_id && (
+            <Text style={styles.soldBy}>
+              Sold by <Text style={styles.soldById}>{bestOffer.vendor_display_id}</Text>
+            </Text>
+          )}
+
+          {/* Quick facts — web: MOQ / Availability / Fulfils from / Supplier dispatch / Manufacturer */}
+          {!!bestOffer && (
+            <View style={styles.factsGrid}>
+              <View style={styles.factCell}>
+                <Ionicons name="cube-outline" size={14} color={colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.factLabel}>MOQ</Text>
+                  <Text style={styles.factValue}>
+                    {bestOffer.min_order_quantity ?? 1} {priceUnit}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.factCell}>
+                <Ionicons name="car-outline" size={14} color={colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.factLabel}>Availability</Text>
+                  <Text style={styles.factValue}>
+                    {totalStock > 0 ? `${totalStock} ${priceUnit} in stock` : 'Out of stock'}
+                  </Text>
+                </View>
+              </View>
+              {allLocations.length > 0 && (
+                <View style={styles.factCell}>
+                  <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.factLabel}>Fulfils from</Text>
+                    <Text style={styles.factValue} numberOfLines={1}>
+                      {allLocations.slice(0, 2).join(', ')}
+                      {allLocations.length > 2 ? ` +${allLocations.length - 2}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {!!bestOffer.lead_time_days && (
+                <View style={styles.factCell}>
+                  <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.factLabel}>Supplier dispatch</Text>
+                    <Text style={styles.factValue}>{bestOffer.lead_time_days} days</Text>
+                  </View>
+                </View>
+              )}
+              {!!bestOffer.manufacturer && (
+                <View style={styles.factCell}>
+                  <Ionicons name="business-outline" size={14} color={colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.factLabel}>Manufacturer</Text>
+                    <Text style={styles.factValue}>{bestOffer.manufacturer}</Text>
+                  </View>
+                </View>
               )}
             </View>
           )}
@@ -262,52 +405,60 @@ export default function ProductScreen() {
             </View>
           )}
 
-          {/* Logistics strip */}
-          <View style={styles.logistics}>
-            <View style={styles.logisticsHead}>
-              <Ionicons name="navigate" size={16} color={colors.secondary} />
-              <Text style={styles.logisticsTitle}>Proximity & Logistics Intelligence</Text>
-              <View style={styles.liveChip}>
-                <Text style={styles.liveChipText}>Live Dispatch</Text>
+          {/* Delivery & Logistics — web ProductDetailPage section */}
+          <View style={styles.sectionHead}>
+            <Ionicons name="car-outline" size={18} color={colors.text} />
+            <Text style={styles.sectionTitleInline}>Delivery & Logistics</Text>
+          </View>
+          <View style={styles.card}>
+            <View style={styles.cardRow}>
+              <View style={styles.cardCell}>
+                <Text style={styles.cardLabel}>Dispatch</Text>
+                <Text style={styles.cardValue}>Confirmed after order placement</Text>
               </View>
-            </View>
-            <View style={styles.logisticsGrid}>
-              <View style={styles.logisticsCell}>
-                <Text style={styles.logisticsLabel}>HAULAGE RATE</Text>
-                <Text style={styles.logisticsValue}>Quoted at checkout</Text>
-              </View>
-              <View style={styles.logisticsCell}>
-                <Text style={styles.logisticsLabel}>TRANSIT ESTIMATE</Text>
-                <Text style={styles.logisticsValue}>
-                  {bestOffer?.lead_time_days ? `${bestOffer.lead_time_days} day${bestOffer.lead_time_days === 1 ? '' : 's'}` : '2–3 Hours'}
+              <View style={styles.cardCell}>
+                <Text style={styles.cardLabel}>Fulfilment source</Text>
+                <Text style={styles.cardValue}>
+                  {allLocations.length > 0 ? allLocations.join(', ') : 'Assigned during vendor fulfilment'}
                 </Text>
               </View>
+              <View style={styles.cardCell}>
+                <Text style={styles.cardLabel}>Delivery destination</Text>
+                <Text style={styles.cardValue}>Enter your site location at checkout</Text>
+              </View>
+              <View style={styles.cardCell}>
+                <Text style={styles.cardLabel}>Delivery fee</Text>
+                <Text style={styles.cardValue}>Calculated for your destination at checkout</Text>
+              </View>
             </View>
-            <View style={styles.waybillNote}>
-              <Ionicons name="document-text-outline" size={13} color={colors.secondary} />
-              <Text style={styles.waybillNoteText}>Waybill tracking: real-time GPS enabled with weighbridge slip copy</Text>
-            </View>
+            <Text style={styles.cardNote}>
+              Final transit timing, vehicle requirements, and delivery confirmation are handled
+              during vendor fulfilment after payment is confirmed.
+            </Text>
           </View>
 
           {/* Quantity + subtotal */}
           <View style={styles.qtyCard}>
             <View>
-              <Text style={styles.qtyTitle}>Order Quantity</Text>
+              <Text style={styles.qtyTitle}>Quantity</Text>
               {bestOffer?.min_order_quantity ? (
-                <Text style={styles.qtyMeta}>Min order {bestOffer.min_order_quantity} · Palletized dispatch</Text>
+                <Text style={styles.qtyMeta}>MOQ {bestOffer.min_order_quantity} {priceUnit}</Text>
               ) : null}
             </View>
             <Stepper value={qty} onChange={setQty} min={1} />
           </View>
           {subtotal != null && (
             <View style={styles.subtotalRow}>
-              <Text style={styles.subtotalLabel}>MATERIALS SUBTOTAL</Text>
+              <Text style={styles.subtotalLabel}>Total</Text>
               <Text style={styles.subtotalValue}>{formatNaira(subtotal)}</Text>
             </View>
           )}
 
-          {/* Supplier offers */}
-          <Text style={styles.sectionTitle}>Verified Supplier Offers</Text>
+          {/* Supplier offers — web: "Available from N vendors" */}
+          <Text style={styles.sectionTitle}>
+            Available from {offerList.length} vendor{offerList.length === 1 ? '' : 's'}
+          </Text>
+          <Text style={styles.sectionSub}>Lowest price is highlighted.</Text>
           {offers.isLoading ? (
             <DetailSkeleton />
           ) : !offers.data?.length ? (
@@ -327,36 +478,119 @@ export default function ProductScreen() {
             ))
           )}
 
-          {/* Secondary CTAs */}
-          <View style={styles.secondaryRow}>
-            <Pressable style={styles.secondaryBtn} onPress={() => router.push('/rfq/new' as any)}>
-              <Ionicons name="document-text-outline" size={16} color={colors.secondary} />
-              <Text style={styles.secondaryText}>Request RFQ</Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryBtn}
-              onPress={() => router.push('/deals' as any)}
-            >
-              <Ionicons name="lock-closed-outline" size={16} color={colors.primary} />
-              <Text style={[styles.secondaryText, { color: colors.primary }]}>Price Lock (30%)</Text>
-            </Pressable>
+          {/* CTAs — web: Add to Cart / Buy Now / Request Quote / Wishlist */}
+          <View style={styles.ctaGrid}>
+            <View style={styles.ctaCell}>
+              <Button
+                title="Add to Cart"
+                icon={<Ionicons name="cart-outline" size={16} color={colors.textOnPrimary} />}
+                onPress={() => addBestOffer()}
+                disabled={!bestOffer}
+              />
+            </View>
+            <View style={styles.ctaCell}>
+              <Button
+                title="Buy Now"
+                variant="outline"
+                icon={<Ionicons name="checkmark" size={16} color={colors.primary} />}
+                onPress={() => addBestOffer(() => router.push('/cart' as any))}
+                disabled={!bestOffer}
+              />
+            </View>
+            <View style={styles.ctaCell}>
+              <Button
+                title="Request Quote"
+                variant="outline"
+                icon={<Ionicons name="chatbox-outline" size={16} color={colors.primary} />}
+                onPress={() => router.push('/rfq/new' as any)}
+              />
+            </View>
+            <View style={styles.ctaCell}>
+              <Button
+                title={wishlist.isSaved(p.id) ? 'Wishlisted' : 'Wishlist'}
+                variant="outline"
+                icon={
+                  <Ionicons
+                    name={wishlist.isSaved(p.id) ? 'heart' : 'heart-outline'}
+                    size={16}
+                    color={colors.primary}
+                  />
+                }
+                onPress={() => {
+                  if (!session) {
+                    router.push('/(auth)/sign-in');
+                    return;
+                  }
+                  wishlist.toggle.mutate({ productId: p.id });
+                }}
+              />
+            </View>
           </View>
+          <Pressable style={styles.shareRow} onPress={shareProduct} hitSlop={6}>
+            <Ionicons name="share-social-outline" size={15} color={colors.textMuted} />
+            <Text style={styles.shareText}>Share</Text>
+          </Pressable>
+
+          {/* Customer Reviews — web placeholder, copy exact */}
+          <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Customer Reviews</Text>
+          <View style={[styles.card, styles.reviewsCard]}>
+            <Text style={styles.reviewsText}>
+              Reviews from verified buyers will appear here once available.
+            </Text>
+          </View>
+
+          {/* Related products */}
+          {relatedItems.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>Related products</Text>
+              <View style={styles.relatedGrid}>
+                {relatedItems.map((r) => (
+                  <Pressable
+                    key={r.id}
+                    style={styles.relatedCard}
+                    onPress={() =>
+                      router.push(`/product/${buildProductParam(r as any)}` as any)
+                    }
+                  >
+                    {r.images?.[0] ? (
+                      <Image
+                        source={{ uri: r.images[0] }}
+                        style={styles.relatedImg}
+                        contentFit="cover"
+                        transition={150}
+                      />
+                    ) : (
+                      <View style={[styles.relatedImg, styles.heroFallback]}>
+                        <Ionicons name="cube-outline" size={24} color={colors.textFaint} />
+                      </View>
+                    )}
+                    <View style={{ padding: spacing.sm }}>
+                      <Text style={styles.relatedName} numberOfLines={2}>{r.name}</Text>
+                      {r.min_price != null && (
+                        <Text style={styles.relatedPrice}>{formatNaira(r.min_price)}</Text>
+                      )}
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
         </ScreenColumn>
       </ScrollView>
 
-      {/* Sticky add-to-cart bar */}
+      {/* Sticky bottom bar — web PDP: Total + Add */}
       {bestOffer && (
         <View style={styles.stickyBar}>
           <View>
-            <Text style={styles.stickyLabel}>Total Price</Text>
+            <Text style={styles.stickyLabel}>Total</Text>
             <Text style={styles.stickyPrice}>{subtotal != null ? formatNaira(subtotal) : '—'}</Text>
           </View>
           <Pressable
-            onPress={() => router.push('/cart' as any)}
+            onPress={() => addBestOffer()}
             style={({ pressed }) => [styles.stickyBtn, pressed && { opacity: 0.9 }]}
           >
             <Ionicons name="cart" size={16} color={colors.textOnPrimary} />
-            <Text style={styles.stickyBtnText}>View Cart</Text>
+            <Text style={styles.stickyBtnText}>Add</Text>
           </Pressable>
         </View>
       )}
@@ -376,7 +610,7 @@ export default function ProductScreen() {
               <Ionicons name="checkmark" size={18} color={colors.textOnPrimary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sheetTitle}>Added to haulage queue</Text>
+              <Text style={styles.sheetTitle}>Added to cart</Text>
               {staged && (
                 <Text style={styles.sheetMeta}>
                   {p.name} · {staged.quantity} × {formatNaira(staged.unitPrice)}
@@ -385,9 +619,9 @@ export default function ProductScreen() {
             </View>
           </View>
           <View style={styles.sheetLogistics}>
-            <Ionicons name="bus" size={14} color={colors.secondary} />
+            <Ionicons name="car-outline" size={14} color={colors.secondary} />
             <Text style={styles.sheetLogisticsText}>
-              Consolidated haulage is matched at checkout based on your delivery site.
+              Delivery is calculated for your destination at checkout.
             </Text>
           </View>
           <View style={styles.sheetActions}>
@@ -448,7 +682,51 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   photoCountText: { ...typography.micro, color: colors.background },
-  kicker: { ...typography.micro, color: colors.secondary, letterSpacing: 0.8 },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xs },
+  catBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  catBadgeText: { ...typography.caption, color: colors.text, fontSize: 12 },
+  brandBadge: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  brandBadgeText: { ...typography.caption, color: colors.textMuted, fontSize: 12 },
+  inStockBadge: {
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  inStockBadgeText: { ...typography.captionStrong, color: colors.secondary, fontSize: 12 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: spacing.sm },
+  ratingText: { ...typography.caption, color: colors.textMuted, marginLeft: 4 },
+  lowestBadge: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginLeft: spacing.xs,
+  },
+  lowestBadgeText: { ...typography.micro, color: colors.textMuted },
+  soldBy: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  soldById: { fontFamily: 'monospace' as any, color: colors.text },
+  factsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  factCell: { width: '46%', flexGrow: 1, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  factLabel: { ...typography.caption, color: colors.textMuted },
+  factValue: { ...typography.bodyStrong, color: colors.text, fontSize: 13, marginTop: 1 },
   name: { ...typography.h1, color: colors.text, fontSize: 22, marginTop: 4 },
   brand: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: spacing.md },
@@ -467,31 +745,25 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   dealChipText: { ...typography.bodyStrong, fontSize: 13 },
-  logistics: {
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  sectionTitleInline: { ...typography.h3, color: colors.text },
+  card: {
     backgroundColor: colors.surfaceRaised,
     borderRadius: radius.lg,
     padding: spacing.md,
-    marginTop: spacing.xl,
     ...shadows.card,
   },
-  logisticsHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  logisticsTitle: { ...typography.bodyStrong, color: colors.text, flex: 1 },
-  liveChip: { backgroundColor: colors.secondarySoft, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  liveChipText: { ...typography.micro, color: colors.secondary },
-  logisticsGrid: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  logisticsCell: { flex: 1 },
-  logisticsLabel: { ...typography.micro, color: colors.textMuted, letterSpacing: 0.5 },
-  logisticsValue: { ...typography.bodyStrong, color: colors.text, marginTop: 2 },
-  waybillNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  waybillNoteText: { ...typography.micro, color: colors.secondary, flex: 1 },
+  cardRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  cardCell: { width: '46%', flexGrow: 1 },
+  cardLabel: { ...typography.caption, color: colors.textMuted },
+  cardValue: { ...typography.bodyStrong, color: colors.text, marginTop: 2, fontSize: 13 },
+  cardNote: { ...typography.micro, color: colors.textMuted, marginTop: spacing.md, lineHeight: 16 },
   qtyCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,20 +813,31 @@ const styles = StyleSheet.create({
   offerMetaRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
   offerMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   offerMeta: { ...typography.caption, color: colors.textMuted },
-  secondaryRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  secondaryBtn: {
-    flex: 1,
+  sectionSub: { ...typography.body, color: colors.textMuted, marginTop: -spacing.sm, marginBottom: spacing.sm },
+  ctaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
+  ctaCell: { width: '48%', flexGrow: 1 },
+  shareRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
+    marginTop: spacing.md,
+  },
+  shareText: { ...typography.body, color: colors.textMuted },
+  reviewsCard: { alignItems: 'center', paddingVertical: spacing.xl },
+  reviewsText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
+  relatedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  relatedCard: {
+    width: '47%',
+    flexGrow: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    height: 44,
-    backgroundColor: colors.surfaceRaised,
   },
-  secondaryText: { ...typography.captionStrong, color: colors.secondary },
+  relatedImg: { width: '100%', aspectRatio: 1, backgroundColor: colors.surface },
+  relatedName: { ...typography.bodyStrong, color: colors.text, fontSize: 13, lineHeight: 18 },
+  relatedPrice: { ...typography.bodyStrong, color: colors.primary, marginTop: 4 },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: colors.surfaceRaised,
