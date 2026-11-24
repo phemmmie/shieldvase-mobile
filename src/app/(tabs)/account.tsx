@@ -1,6 +1,9 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { useAuth } from '@/features/auth/AuthContext';
 import { LoadingState } from '@/components/States';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -31,6 +34,55 @@ function Row({
   );
 }
 
+function UpdateRow() {
+  const [checking, setChecking] = useState(false);
+  const [status, setStatus] = useState('');
+
+  const check = async () => {
+    if (!Updates.isEnabled) {
+      setStatus('Updates are only available in release builds');
+      return;
+    }
+    try {
+      setChecking(true);
+      setStatus('Checking for updates…');
+      const res = await Updates.checkForUpdateAsync();
+      if (!res.isAvailable) {
+        setStatus('You are on the latest version');
+      } else {
+        setStatus('Downloading update…');
+        await Updates.fetchUpdateAsync();
+        setStatus('Update downloaded');
+        Alert.alert('Update ready', 'Restart now to apply the update?', [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Restart', onPress: () => void Updates.reloadAsync() },
+        ]);
+      }
+    } catch {
+      setStatus('Could not check for updates — check your connection');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <Pressable style={styles.row} onPress={check} disabled={checking}>
+      <Ionicons name="cloud-download-outline" size={20} color={colors.textMuted} />
+      <View style={styles.rowBody}>
+        <Text style={styles.rowLabel}>Check for updates</Text>
+        <Text style={styles.rowSub}>
+          {status || `Version ${Constants.expoConfig?.version ?? '1.0.0'}`}
+        </Text>
+      </View>
+      {checking ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <Ionicons name="refresh" size={16} color={colors.textMuted} />
+      )}
+    </Pressable>
+  );
+}
+
 export default function AccountScreen() {
   const router = useRouter();
   const { user, userType, loading, signOut } = useAuth();
@@ -54,6 +106,9 @@ export default function AccountScreen() {
         <Pressable onPress={() => router.push('/(auth)/sign-up')}>
           <Text style={styles.createText}>Create an account</Text>
         </Pressable>
+        <View style={styles.guestUpdateCard}>
+          <UpdateRow />
+        </View>
       </View>
     );
   }
@@ -86,6 +141,10 @@ export default function AccountScreen() {
         <Row icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
         <Row icon="location-outline" label="Delivery addresses" onPress={() => router.push('/addresses')} />
         <Row icon="gift-outline" label="Refer & Earn" onPress={() => router.push('/rewards')} />
+      </View>
+
+      <View style={styles.card}>
+        <UpdateRow />
       </View>
 
       <View style={styles.card}>
@@ -171,4 +230,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   rowLabel: { ...typography.body, color: colors.text, flex: 1 },
+  rowBody: { flex: 1 },
+  rowSub: { ...typography.micro, color: colors.textMuted, marginTop: 2 },
+  guestUpdateCard: {
+    ...shadows.card,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceRaised,
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+    marginTop: spacing['2xl'],
+  },
 });
