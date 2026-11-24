@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -42,17 +42,15 @@ function IconBtn({
   );
 }
 
-const SITE = 'https://shieldvase.io';
-
 // Mirrors the web TopNavbar mobile menu (isMenuOpen dropdown): the same six
-// links — native routes where the page exists, site links otherwise.
-const MENU_LINKS: { icon: keyof typeof Ionicons.glyphMap; label: string; route?: string; url?: string }[] = [
+// links — all routing natively now that every page is ported.
+const MENU_LINKS: { icon: keyof typeof Ionicons.glyphMap; label: string; route: string }[] = [
   { icon: 'cash-outline', label: 'Prices', route: '/prices' },
   { icon: 'headset-outline', label: 'Podcast', route: '/podcast' },
   { icon: 'book-outline', label: 'About Us', route: '/about' },
   { icon: 'chatbox-outline', label: 'Contact', route: '/contact' },
   { icon: 'car-outline', label: 'Logistics Hub', route: '/logistics-hub' },
-  { icon: 'document-text-outline', label: 'RFQ', route: '/rfq/new' },
+  { icon: 'document-text-outline', label: 'RFQ', route: '/rfq' },
 ];
 
 export function AppHeader({ title, brand }: { title: string; brand?: boolean }) {
@@ -65,8 +63,7 @@ export function AppHeader({ title, brand }: { title: string; brand?: boolean }) 
 
   const go = (l: (typeof MENU_LINKS)[number]) => {
     setMenuOpen(false);
-    if (l.route) router.push(l.route as any);
-    else if (l.url) Linking.openURL(l.url);
+    router.push(l.route as any);
   };
 
   return (
