@@ -48,7 +48,7 @@ const SITE = 'https://shieldvase.io';
 // links — native routes where the page exists, site links otherwise.
 const MENU_LINKS: { icon: keyof typeof Ionicons.glyphMap; label: string; route?: string; url?: string }[] = [
   { icon: 'cash-outline', label: 'Prices', route: '/prices' },
-  { icon: 'headset-outline', label: 'Podcast', url: `${SITE}/podcast` },
+  { icon: 'headset-outline', label: 'Podcast', route: '/podcast' },
   { icon: 'book-outline', label: 'About Us', url: `${SITE}/about` },
   { icon: 'chatbox-outline', label: 'Contact', url: `${SITE}/contact` },
   { icon: 'car-outline', label: 'Logistics Hub', url: `${SITE}/logistics-hub` },
