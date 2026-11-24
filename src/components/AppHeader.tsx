@@ -51,7 +51,7 @@ const MENU_LINKS: { icon: keyof typeof Ionicons.glyphMap; label: string; route?:
   { icon: 'headset-outline', label: 'Podcast', route: '/podcast' },
   { icon: 'book-outline', label: 'About Us', route: '/about' },
   { icon: 'chatbox-outline', label: 'Contact', route: '/contact' },
-  { icon: 'car-outline', label: 'Logistics Hub', url: `${SITE}/logistics-hub` },
+  { icon: 'car-outline', label: 'Logistics Hub', route: '/logistics-hub' },
   { icon: 'document-text-outline', label: 'RFQ', route: '/rfq/new' },
 ];
 
