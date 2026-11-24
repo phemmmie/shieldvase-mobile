@@ -13,7 +13,7 @@ import { colors, radius, spacing, typography } from '@/theme';
 
 // Mirrors web DynamicMarketplace: the slug resolves a root category whose
 // main_category selects the dedicated marketplace view.
-const MARKETPLACES: Record<string, ComponentType> = {
+const MARKETPLACES: Record<string, ComponentType<{ initialSearch?: string }>> = {
   construction: ConstructionMarketplace,
   polymers: PolymersMarketplace,
   chemicals: ChemicalsMarketplace,
@@ -22,7 +22,7 @@ const MARKETPLACES: Record<string, ComponentType> = {
 };
 
 export default function CategoryScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, search } = useLocalSearchParams<{ slug: string; search?: string }>();
   const router = useRouter();
   const categories = useCategories();
   const category = categories.data?.find((c) => c.slug === slug);
@@ -86,7 +86,7 @@ export default function CategoryScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: category.name }} />
-      <Page />
+      <Page initialSearch={search ?? ''} />
     </View>
   );
 }

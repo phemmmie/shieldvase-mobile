@@ -65,8 +65,8 @@ const KEY_CATEGORIES = [
 ];
 
 /** Mobile port of web views/AgricultureAndAnimalFeed.tsx. */
-export function AgricultureMarketplace() {
-  const page = useMarketplacePage('agriculture');
+export function AgricultureMarketplace({ initialSearch = '' }: { initialSearch?: string }) {
+  const page = useMarketplacePage('agriculture', initialSearch);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [productsY, setProductsY] = useState(0);
   const [categoriesY, setCategoriesY] = useState(0);

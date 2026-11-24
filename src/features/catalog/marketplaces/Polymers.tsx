@@ -46,8 +46,8 @@ const APPLICATIONS = [
 ];
 
 /** Mobile port of web views/Polymers.tsx. */
-export function PolymersMarketplace() {
-  const page = useMarketplacePage('polymers');
+export function PolymersMarketplace({ initialSearch = '' }: { initialSearch?: string }) {
+  const page = useMarketplacePage('polymers', initialSearch);
   const router = useRouter();
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [productsY, setProductsY] = useState(0);

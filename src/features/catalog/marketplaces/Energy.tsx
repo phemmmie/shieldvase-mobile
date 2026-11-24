@@ -64,8 +64,8 @@ const KEY_CATEGORIES = [
 ];
 
 /** Mobile port of web views/Energy.tsx. */
-export function EnergyMarketplace() {
-  const page = useMarketplacePage('energy');
+export function EnergyMarketplace({ initialSearch = '' }: { initialSearch?: string }) {
+  const page = useMarketplacePage('energy', initialSearch);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [productsY, setProductsY] = useState(0);
   const [categoriesY, setCategoriesY] = useState(0);

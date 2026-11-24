@@ -230,9 +230,9 @@ export type CategoryChip = { id: string; name: string; slug: string; count: numb
  * plus derived option lists. Mirrors the filter logic each web marketplace
  * view runs against its catalogue.
  */
-export function useMarketplacePage(mainCategory: string) {
+export function useMarketplacePage(mainCategory: string, initialSearch = '') {
   const query = useMarketplace(mainCategory);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
   const [cities, setCities] = useState<string[]>([]);
@@ -316,4 +316,43 @@ export function useMarketplacePage(mainCategory: string) {
     activeFilterCount,
     clearFilters,
   };
+}
+
+/**
+ * Mirrors the web hero's handleSearchSubmit: a free-text search resolves to
+ * the marketplace category page that lists matching products —
+ * /{categorySlug}?search={term}. Direct category-name match first, else the
+ * main_category of the best-matching product, else 'construction-materials'.
+ */
+export async function resolveSearchCategorySlug(term: string): Promise<string> {
+  const trimmed = term.trim();
+  const { data: topCategories } = await supabase
+    .from('categories')
+    .select('name, slug, main_category')
+    .is('parent_id', null)
+    .eq('is_active', true);
+
+  const direct = (topCategories ?? []).find(
+    (c: any) =>
+      c.name?.toLowerCase() === trimmed.toLowerCase() ||
+      c.name?.toLowerCase().includes(trimmed.toLowerCase()),
+  );
+  if (direct) return direct.slug;
+
+  const { data: products } = await supabase
+    .from('unified_products')
+    .select('name, categories:categories!unified_products_category_id_fkey(main_category)')
+    .ilike('name', `%${trimmed}%`)
+    .eq('status', 'active')
+    .limit(5);
+
+  const best =
+    (products ?? []).find((p: any) => p.name?.toLowerCase().startsWith(trimmed.toLowerCase())) ??
+    (products ?? [])[0];
+  const mainCategory = (best as any)?.categories?.main_category;
+  const matched = mainCategory
+    ? (topCategories ?? []).find((c: any) => c.main_category === mainCategory)
+    : undefined;
+
+  return matched?.slug || 'construction-materials';
 }

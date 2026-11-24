@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Link, Stack, useLocalSearchParams } from 'expo-router';
+import { Link, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useCategories, useProductSearch } from '@/features/catalog/queries';
+import { resolveSearchCategorySlug } from '@/features/catalog/marketplaceApi';
 import { EmptyState } from '@/components/States';
 import { ListSkeleton } from '@/components/Skeleton';
 import { ScreenColumn } from '@/components/Responsive';
@@ -82,12 +83,22 @@ function ResultCard({ product, index }: { product: ProductSummary; index: number
 
 export default function SearchScreen() {
   const { q } = useLocalSearchParams<{ q?: string }>();
+  const router = useRouter();
   const [term, setTerm] = useState(typeof q === 'string' ? q : '');
   const [sort, setSort] = useState<SortKey>('relevance');
   const results = useProductSearch(term);
   const categories = useCategories();
   const sorted = results.data ? sortResults(results.data, sort) : [];
   const searching = term.trim().length >= 2;
+
+  // Web parity: submitting a search resolves to the category marketplace
+  // page that lists matches — /{categorySlug}?search={term}.
+  const submit = async () => {
+    const t = term.trim();
+    if (!t) return;
+    const slug = await resolveSearchCategorySlug(t);
+    router.push(`/category/${slug}?search=${encodeURIComponent(t)}` as any);
+  };
 
   return (
     <View style={styles.screen}>
@@ -104,8 +115,12 @@ export default function SearchScreen() {
               autoFocus
               value={term}
               onChangeText={setTerm}
+              onSubmitEditing={submit}
               returnKeyType="search"
             />
+            <Pressable onPress={submit} hitSlop={8} disabled={!term.trim()}>
+              <Ionicons name="arrow-forward-circle" size={22} color={term.trim() ? colors.primary : colors.textFaint} />
+            </Pressable>
             {!!term && (
               <Pressable onPress={() => setTerm('')} hitSlop={8}>
                 <Ionicons name="close-circle" size={18} color={colors.textMuted} />

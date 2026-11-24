@@ -18,8 +18,8 @@ const ACCENT = '#FFB400';
 const CARD_ACCENT = colors.primary;
 
 /** Mobile port of web views/Construction.tsx — hero, filters, product grid. */
-export function ConstructionMarketplace() {
-  const page = useMarketplacePage('construction');
+export function ConstructionMarketplace({ initialSearch = '' }: { initialSearch?: string }) {
+  const page = useMarketplacePage('construction', initialSearch);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [productsY, setProductsY] = useState(0);
 

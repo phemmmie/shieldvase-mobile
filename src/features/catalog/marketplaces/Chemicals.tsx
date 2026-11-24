@@ -52,8 +52,8 @@ const FEATURED = [
 ];
 
 /** Mobile port of web views/Chemicals.tsx + its sub-components. */
-export function ChemicalsMarketplace() {
-  const page = useMarketplacePage('chemicals');
+export function ChemicalsMarketplace({ initialSearch = '' }: { initialSearch?: string }) {
+  const page = useMarketplacePage('chemicals', initialSearch);
   const router = useRouter();
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [productsY, setProductsY] = useState(0);
