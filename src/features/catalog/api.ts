@@ -10,6 +10,8 @@ export type Category = {
   slug: string;
   image: string | null;
   parent_id: string | null;
+  main_category: string | null;
+  description: string | null;
 };
 
 export type ProductSummary = {
@@ -38,8 +40,9 @@ export type VendorOffer = {
 export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from('categories')
-    .select('id, name, slug, image, parent_id')
+    .select('id, name, slug, image, parent_id, main_category, description')
     .is('parent_id', null)
+    .eq('is_active', true)
     .order('name');
   if (error) throw error;
   return (data ?? []) as Category[];

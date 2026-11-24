@@ -1,140 +1,117 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { ComponentType } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useCategories, useCategoryProducts } from '@/features/catalog/queries';
-import { ProductCard } from '@/components/ProductCard';
-import { EmptyState, ErrorState } from '@/components/States';
-import { ProductGridSkeleton } from '@/components/Skeleton';
-import { ScreenColumn } from '@/components/Responsive';
-import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { useCategories } from '@/features/catalog/queries';
+import { LoadingState } from '@/components/States';
+import { ConstructionMarketplace } from '@/features/catalog/marketplaces/Construction';
+import { PolymersMarketplace } from '@/features/catalog/marketplaces/Polymers';
+import { ChemicalsMarketplace } from '@/features/catalog/marketplaces/Chemicals';
+import { EnergyMarketplace } from '@/features/catalog/marketplaces/Energy';
+import { AgricultureMarketplace } from '@/features/catalog/marketplaces/Agriculture';
+import { colors, radius, spacing, typography } from '@/theme';
+
+// Mirrors web DynamicMarketplace: the slug resolves a root category whose
+// main_category selects the dedicated marketplace view.
+const MARKETPLACES: Record<string, ComponentType> = {
+  construction: ConstructionMarketplace,
+  polymers: PolymersMarketplace,
+  chemicals: ChemicalsMarketplace,
+  energy: EnergyMarketplace,
+  agriculture: AgricultureMarketplace,
+};
 
 export default function CategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const categories = useCategories();
   const category = categories.data?.find((c) => c.slug === slug);
-  const products = useCategoryProducts(category?.id);
+
+  if (categories.isLoading) {
+    return (
+      <View style={styles.screen}>
+        <Stack.Screen options={{ title: 'Category' }} />
+        <LoadingState />
+      </View>
+    );
+  }
+
+  // Web parity: "Category Not Found" state with Return to Home.
+  if (!category) {
+    return (
+      <View style={styles.screen}>
+        <Stack.Screen options={{ title: 'Not found' }} />
+        <View style={styles.fallback}>
+          <Ionicons name="cube-outline" size={56} color={colors.textFaint} />
+          <Text style={styles.fallbackTitle}>Category Not Found</Text>
+          <Text style={styles.fallbackBody}>
+            The category &quot;{slug}&quot; does not exist or has been removed.
+          </Text>
+          <Pressable
+            onPress={() => router.replace('/(tabs)' as any)}
+            style={({ pressed }) => [styles.homeBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.homeBtnText}>Return to Home</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  const Page = MARKETPLACES[category.main_category ?? ''];
+
+  // Web parity: categories without a dedicated marketplace view show a
+  // "Products coming soon" fallback.
+  if (!Page) {
+    return (
+      <View style={styles.screen}>
+        <Stack.Screen options={{ title: category.name }} />
+        <View style={styles.fallback}>
+          <Ionicons name="cube-outline" size={56} color={colors.textFaint} />
+          <Text style={styles.fallbackTitle}>{category.name}</Text>
+          <Text style={styles.fallbackBody}>
+            {category.description || 'Products coming soon for this category.'}
+          </Text>
+          <Pressable
+            onPress={() => router.replace('/(tabs)' as any)}
+            style={({ pressed }) => [styles.homeBtn, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={styles.homeBtnText}>Return to Home</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={{ title: category?.name ?? 'Category' }} />
-      <ScreenColumn>
-        {/* Depot-count summary — stitch 04 header */}
-        <View style={styles.summary}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.summaryTitle}>{category?.name ?? 'Products'}</Text>
-            <Text style={styles.summarySub}>
-              {products.data?.length ?? 0} verified listing
-              {(products.data?.length ?? 0) === 1 ? '' : 's'} · ShieldVase escrow protected
-            </Text>
-          </View>
-          <View style={styles.summaryBadge}>
-            <Ionicons name="shield-checkmark" size={16} color={colors.secondary} />
-          </View>
-        </View>
-
-        {products.isLoading ? (
-          <ProductGridSkeleton />
-        ) : products.isError ? (
-          <ErrorState onRetry={() => products.refetch()} />
-        ) : !products.data?.length ? (
-          <EmptyState title="No products in this category" hint="Try another category or request a quote." />
-        ) : (
-          <FlatList
-            data={products.data}
-            keyExtractor={(p) => p.id}
-            numColumns={2}
-            columnWrapperStyle={{ gap: spacing.sm }}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <View style={styles.item}>
-                <ProductCard product={item} />
-              </View>
-            )}
-            ListFooterComponent={
-              /* Bulk RFQ banner — stitch 04 bottom CTA */
-              <View style={styles.rfqBanner}>
-                <Text style={styles.rfqTitle}>Need 1,000+ bags or direct mill allocation?</Text>
-                <Text style={styles.rfqBody}>
-                  Bypass retail depot markups — issue a multi-depot RFQ directly to verified
-                  plants with custom weighbridge escrow.
-                </Text>
-                <View style={styles.rfqTags}>
-                  <View style={styles.rfqTag}>
-                    <Ionicons name="shield-checkmark" size={10} color={colors.secondaryLight} />
-                    <Text style={styles.rfqTagText}>Escrow Protected</Text>
-                  </View>
-                  <View style={styles.rfqTag}>
-                    <Text style={styles.rfqTagText}>Custom BoQ</Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={() => router.push('/rfq/new' as any)}
-                  style={({ pressed }) => [styles.rfqBtn, pressed && { opacity: 0.9 }]}
-                >
-                  <Text style={styles.rfqBtnText}>Launch RFQ</Text>
-                  <Ionicons name="arrow-forward" size={16} color={colors.textOnPrimary} />
-                </Pressable>
-              </View>
-            }
-          />
-        )}
-      </ScreenColumn>
+      <Stack.Screen options={{ title: category.name }} />
+      <Page />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  summaryTitle: { ...typography.h2, color: colors.text },
-  summarySub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  summaryBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: colors.secondarySoft,
+  fallback: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: spacing['2xl'],
   },
-  list: { paddingBottom: spacing['3xl'], gap: spacing.sm },
-  item: { flex: 1 },
-  rfqBanner: {
-    backgroundColor: colors.navy,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginTop: spacing.lg,
-    ...shadows.raised,
+  fallbackTitle: { ...typography.h2, color: colors.text, marginTop: spacing.md },
+  fallbackBody: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
-  rfqTitle: { ...typography.h3, color: colors.background },
-  rfqBody: { ...typography.caption, color: 'rgba(255,255,255,0.7)', marginTop: spacing.xs },
-  rfqTags: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  rfqTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  rfqTagText: { ...typography.micro, color: colors.secondaryLight },
-  rfqBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.secondary,
+  homeBtn: {
+    backgroundColor: colors.primary,
     borderRadius: radius.md,
-    height: 46,
-    marginTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 12,
   },
-  rfqBtnText: { ...typography.bodyStrong, color: colors.textOnPrimary },
+  homeBtnText: { ...typography.bodyStrong, color: colors.textOnPrimary },
 });
