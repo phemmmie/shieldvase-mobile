@@ -19,6 +19,18 @@ import {
   processPayment,
   type DeliveryDetails,
 } from '@/features/checkout/api';
+import {
+  creditTotal,
+  getCheckoutAdjustments,
+  resetCheckoutAdjustments,
+  storeReferralSlug,
+} from '@/features/checkout/adjustments';
+import {
+  DEFAULT_CHARGES,
+  calculateOrderCharges,
+  useOrderCharges,
+  useServerOrderCharges,
+} from '@/features/deals/charges';
 import { Field, FormError } from '@/features/auth/components';
 import { ScreenColumn } from '@/components/Responsive';
 import { EmptyState, LoadingState } from '@/components/States';
@@ -44,6 +56,22 @@ export default function CheckoutScreen() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const adjustments = getCheckoutAdjustments();
+  const credits = creditTotal(adjustments);
+  const orderCharges = useOrderCharges();
+  const charges = orderCharges.data || DEFAULT_CHARGES;
+  const { data: serverCharges } = useServerOrderCharges(items, {
+    state: form.state,
+    city: form.city,
+  });
+  const clientBreakdown = calculateOrderCharges(totalPrice, charges, {
+    state: form.state,
+    city: form.city,
+  });
+  const { subtotal, adminFee, vat, delivery, total } =
+    serverCharges?.breakdown ?? clientBreakdown;
+  const grandTotal = Math.max(0, total - adjustments.promoAmount - credits);
 
   const set = (key: keyof DeliveryDetails) => (v: string) =>
     setForm((f) => ({ ...f, [key]: v }));
@@ -79,7 +107,13 @@ export default function CheckoutScreen() {
         subtotal: totalPrice,
         tax: 0,
         shipping: 0,
-        total: totalPrice,
+        total: grandTotal,
+        creditApplied: credits,
+        creditTransaction: adjustments.creditTransaction,
+        creditDelivery: adjustments.creditDelivery,
+        creditDiscount: adjustments.creditDiscount,
+        discountCode: adjustments.promoCode,
+        referralSlug: adjustments.referralSlug,
       });
 
       const result = await processPayment(
@@ -92,6 +126,8 @@ export default function CheckoutScreen() {
       );
 
       if (result.kind === 'paid') {
+        await storeReferralSlug(null);
+        resetCheckoutAdjustments();
         router.replace(`/payment-callback/${result.orderGroupId}?type=order`);
         return;
       }
@@ -194,13 +230,51 @@ export default function CheckoutScreen() {
         <View style={styles.summary}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>
-              Items ({items.reduce((s, i) => s + i.quantity, 0)})
+              Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)
             </Text>
-            <Text style={styles.summaryValue}>{formatNaira(totalPrice)}</Text>
+            <Text style={styles.summaryValue}>{formatNaira(subtotal)}</Text>
+          </View>
+          {charges.adminFeePercent > 0 && adminFee > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Admin Fee ({charges.adminFeePercent}%)</Text>
+              <Text style={styles.summaryValue}>{formatNaira(adminFee)}</Text>
+            </View>
+          )}
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>VAT ({charges.vatPercent}%)</Text>
+            <Text style={styles.summaryValue}>{formatNaira(vat)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>
+              Delivery{form.city || form.state ? ` to ${[form.city, form.state].filter(Boolean).join(', ')}` : ''}
+            </Text>
+            <Text style={styles.summaryValue}>
+              {delivery === 0 ? 'FREE' : formatNaira(delivery)}
+            </Text>
+          </View>
+          {adjustments.promoAmount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Promo discount</Text>
+              <Text style={[styles.summaryValue, { color: colors.secondary }]}>
+                -{formatNaira(adjustments.promoAmount)}
+              </Text>
+            </View>
+          )}
+          {credits > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Reward credit</Text>
+              <Text style={[styles.summaryValue, { color: colors.secondary }]}>
+                -{formatNaira(credits)}
+              </Text>
+            </View>
+          )}
+          <View style={[styles.summaryRow, styles.summaryTotalRow]}>
+            <Text style={styles.summaryTotalLabel}>Total</Text>
+            <Text style={styles.summaryTotalValue}>{formatNaira(grandTotal)}</Text>
           </View>
           <Text style={styles.summaryNote}>
-            Delivery fees &amp; charges are calculated when the order is created —
-            you’ll see the exact total on the PalmPay page.
+            The final total is confirmed server-side when the order is created —
+            you’ll see the exact amount on the PalmPay page.
           </Text>
         </View>
 
@@ -290,6 +364,14 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { ...typography.body, color: colors.textMuted },
   summaryValue: { ...typography.bodyStrong, color: colors.text },
+  summaryTotalRow: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  summaryTotalLabel: { ...typography.bodyStrong, color: colors.text },
+  summaryTotalValue: { ...typography.h3, color: colors.text },
   summaryNote: { ...typography.micro, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 16 },
   footer: {
     padding: spacing.lg,

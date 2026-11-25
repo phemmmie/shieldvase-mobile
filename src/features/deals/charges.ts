@@ -489,3 +489,200 @@ export const calculatePriceLockCharges = (
     true,
     rules && ruleContext ? { transactionType: 'price_lock', rules, ruleContext } : undefined,
   );
+
+// ---------------------------------------------------------------------------
+// Server-authoritative order-charge preview (port of web useServerOrderCharges)
+// ---------------------------------------------------------------------------
+
+interface VendorProductContextRow {
+  id: string;
+  vendor_id: string;
+  unified_product_id: string | null;
+}
+
+interface ResolvedChargeItem {
+  vendorId: string;
+  categoryId: string | null;
+  productId: string | null;
+  subtotal: number;
+}
+
+interface ChargesRpcResult {
+  subtotal?: number;
+  admin_fee?: number;
+  vat?: number;
+  delivery?: number;
+  custom_charges_total?: number;
+  applied_rules?: {
+    charge_kind?: string;
+    rule_id?: string | null;
+    label?: string | null;
+    amount?: number;
+    visible?: boolean;
+  }[];
+}
+
+export interface ServerOrderChargesItem {
+  id: string;
+  vendor_product_id?: string;
+  unified_product_id?: string;
+  vendor_id?: string | null;
+  price: number;
+  quantity: number;
+}
+
+/**
+ * Server-authoritative order-charge preview for the cart/checkout summary.
+ * Calls calculate_order_charges_v2 per vendor group (delivery applied once per
+ * order group) — the same RPC convert_cart_to_order uses, so the displayed
+ * total matches the charged total by construction. Returns null data (callers
+ * fall back to client-side calc) when items can't be resolved or the RPC fails.
+ */
+export const useServerOrderCharges = (
+  items: ServerOrderChargesItem[],
+  location?: { state?: string; city?: string },
+) => {
+  const itemsKey = (items || [])
+    .map((i) => `${i.vendor_product_id || `${i.unified_product_id}|${i.vendor_id}`}:${i.quantity}:${i.price}`)
+    .sort()
+    .join(';');
+  const state = location?.state || null;
+  const city = location?.city || null;
+
+  return useQuery<{ breakdown: ChargeBreakdown } | null>({
+    queryKey: ['server-order-charges', itemsKey, state, city],
+    enabled: items.length > 0,
+    staleTime: 30 * 1000,
+    queryFn: async () => {
+      const byVpId = (items || []).filter((i) => i.vendor_product_id);
+      const byPair = (items || []).filter(
+        (i) => !i.vendor_product_id && i.unified_product_id && i.vendor_id,
+      );
+
+      const contextByItemId = new Map<string, VendorProductContextRow>();
+      const vpIds = Array.from(new Set(byVpId.map((i) => i.vendor_product_id!)));
+      if (vpIds.length > 0) {
+        const { data, error } = await supabase
+          .from('vendor_products')
+          .select('id, vendor_id, unified_product_id')
+          .in('id', vpIds);
+        if (error) throw error;
+        (data || []).forEach((row: any) => contextByItemId.set(row.id, row));
+      }
+
+      for (const item of byPair) {
+        const { data, error } = await supabase
+          .from('vendor_products')
+          .select('id, vendor_id, unified_product_id')
+          .eq('unified_product_id', item.unified_product_id!)
+          .eq('vendor_id', item.vendor_id!)
+          .limit(1);
+        if (error) throw error;
+        if (data?.[0]) contextByItemId.set(item.id, data[0]);
+      }
+
+      const unifiedIds = Array.from(
+        new Set(
+          Array.from(contextByItemId.values())
+            .map((r) => r.unified_product_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      const categoryByUnified = new Map<string, string | null>();
+      if (unifiedIds.length > 0) {
+        const { data, error } = await supabase
+          .from('unified_products')
+          .select('id, category_id')
+          .in('id', unifiedIds);
+        if (error) throw error;
+        (data || []).forEach((row: any) => categoryByUnified.set(row.id, row.category_id));
+      }
+
+      const resolved: ResolvedChargeItem[] = [];
+      for (const item of items) {
+        const ctx = contextByItemId.get(item.vendor_product_id || item.id);
+        if (!ctx) return null;
+        resolved.push({
+          vendorId: ctx.vendor_id,
+          categoryId: ctx.unified_product_id
+            ? categoryByUnified.get(ctx.unified_product_id) ?? null
+            : null,
+          productId: ctx.unified_product_id,
+          subtotal: item.price * item.quantity,
+        });
+      }
+      if (resolved.length === 0) return null;
+
+      const groups = new Map<string, ResolvedChargeItem[]>();
+      resolved.forEach((ri) => {
+        const list = groups.get(ri.vendorId) || [];
+        list.push(ri);
+        groups.set(ri.vendorId, list);
+      });
+
+      const results = await Promise.all(
+        Array.from(groups.entries()).map(([vendorId, groupItems]) =>
+          supabase.rpc('calculate_order_charges_v2', {
+            p_items: groupItems.map((g) => ({
+              category_id: g.categoryId,
+              product_id: g.productId,
+              subtotal: g.subtotal,
+            })),
+            p_vendor_id: vendorId,
+            p_transaction_type: 'order',
+            p_state: state,
+            p_city: city,
+          }),
+        ),
+      );
+      const firstError = results.find((r) => r.error)?.error;
+      if (firstError) throw firstError;
+
+      let subtotal = 0;
+      let adminFee = 0;
+      let vat = 0;
+      let delivery = 0;
+      let customChargesTotal = 0;
+      let total = 0;
+      const customCharges: ComputedCharge[] = [];
+
+      results.forEach((res, idx) => {
+        const data = res.data as ChargesRpcResult | null;
+        if (!data) return;
+        subtotal += Number(data.subtotal || 0);
+        adminFee += Number(data.admin_fee || 0);
+        vat += Number(data.vat || 0);
+        if (idx === 0) delivery = Number(data.delivery || 0);
+        customChargesTotal += Number(data.custom_charges_total || 0);
+        total +=
+          Number(data.subtotal || 0) +
+          Number(data.admin_fee || 0) +
+          Number(data.vat || 0) +
+          Number(data.custom_charges_total || 0) +
+          (idx === 0 ? Number(data.delivery || 0) : 0);
+        (data.applied_rules || [])
+          .filter((r) => r.charge_kind === 'custom')
+          .forEach((r) =>
+            customCharges.push({
+              id: r.rule_id || r.label || 'custom',
+              label: r.label || 'Charge',
+              amount: Number(r.amount || 0),
+              visible: r.visible !== false,
+            }),
+          );
+      });
+
+      return {
+        breakdown: {
+          subtotal,
+          adminFee,
+          vat,
+          delivery,
+          customCharges,
+          customChargesTotal,
+          total,
+        },
+      };
+    },
+  });
+};

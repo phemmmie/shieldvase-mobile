@@ -27,6 +27,12 @@ export type CheckoutPayload = {
   tax: number;
   shipping: number;
   total: number;
+  creditApplied?: number;
+  creditTransaction?: number;
+  creditDelivery?: number;
+  creditDiscount?: number;
+  discountCode?: string | null;
+  referralSlug?: string | null;
 };
 
 const UUID_PATTERN =
@@ -122,6 +128,12 @@ export async function createCheckoutSession(payload: CheckoutPayload) {
     payment_method: payload.paymentMethod,
     payment_status: 'pending',
     items: safeItems,
+    credit_applied: payload.creditApplied ?? 0,
+    credit_transaction: payload.creditTransaction ?? 0,
+    credit_delivery: payload.creditDelivery ?? 0,
+    credit_discount: payload.creditDiscount ?? 0,
+    discount_code: payload.discountCode || null,
+    referral_slug: payload.referralSlug || null,
   };
 
   const storageKey = `checkout_session_${sessionId}`;
