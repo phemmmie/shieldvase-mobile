@@ -459,7 +459,7 @@ export default function HomeScreen() {
           </Animated.View>
         ))}
         <Pressable
-          onPress={() => Linking.openURL(`${SITE}/services`)}
+          onPress={() => router.push('/services' as any)}
           style={({ pressed }) => [styles.servicesBtn, pressed && { opacity: 0.85 }]}
         >
           <Text style={styles.servicesBtnText}>Learn More About Our Services</Text>
@@ -594,16 +594,14 @@ export default function HomeScreen() {
 
           <Text style={styles.footerHead}>Help & Support</Text>
           {[
-            { label: 'FAQs', url: `${SITE}/faq` },
-            { label: 'Privacy Policy', url: `${SITE}/privacy-policy` },
-            { label: 'Terms & Conditions', url: `${SITE}/terms-and-conditions` },
+            { label: 'FAQs', route: '/faq' },
+            { label: 'Privacy Policy', route: '/privacy-policy' },
+            { label: 'Terms & Conditions', route: '/terms-and-conditions' },
             { label: 'Rewards & Benefits', route: '/rewards' },
           ].map((l) => (
             <Pressable
               key={l.label}
-              onPress={() =>
-                l.route ? router.push(l.route as any) : Linking.openURL(l.url!)
-              }
+              onPress={() => router.push(l.route as any)}
               style={styles.footerLink}
             >
               <Text style={styles.footerLinkText}>{l.label}</Text>
@@ -612,14 +610,14 @@ export default function HomeScreen() {
 
           <Text style={styles.footerHead}>Quick Links</Text>
           {[
-            { label: 'Our Services', url: `${SITE}/services` },
-            { label: 'About Us', url: `${SITE}/about` },
-            { label: 'Contact', url: `${SITE}/contact` },
-            { label: 'Guides', url: `${SITE}/guides` },
+            { label: 'Our Services', route: '/services' },
+            { label: 'About Us', route: '/about' },
+            { label: 'Contact', route: '/contact' },
+            { label: 'Guides', route: '/guides' },
           ].map((l) => (
             <Pressable
               key={l.label}
-              onPress={() => Linking.openURL(l.url!)}
+              onPress={() => router.push(l.route as any)}
               style={styles.footerLink}
             >
               <Text style={styles.footerLinkText}>{l.label}</Text>
