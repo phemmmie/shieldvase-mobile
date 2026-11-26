@@ -573,7 +573,7 @@ export async function fetchDealPaymentState(
 const prefixCache: Record<string, string> = {};
 
 export async function getShareLinkPrefix(
-  dealType: 'group_buy' | 'price_lock',
+  dealType: 'group_buy' | 'price_lock' | 'rfq',
   fallback: string,
 ): Promise<string> {
   if (prefixCache[dealType]) return prefixCache[dealType];
@@ -587,10 +587,10 @@ export async function getShareLinkPrefix(
 }
 
 export async function buildDealShareUrl(
-  dealType: 'group_buy' | 'price_lock',
+  dealType: 'group_buy' | 'price_lock' | 'rfq',
   slug: string,
 ): Promise<string> {
-  const fallback = dealType === 'group_buy' ? '/deals/group-buy' : '/deals/price-lock';
+  const fallback = dealType === 'group_buy' ? '/deals/group-buy' : dealType === 'price_lock' ? '/deals/price-lock' : '/quote';
   const prefix = await getShareLinkPrefix(dealType, fallback);
   return `${env.siteUrl}${prefix}/${slug}`;
 }
@@ -599,7 +599,7 @@ const clickedThisSession = new Set<string>();
 
 /** One click row per app session per slug — feeds admin click analytics. */
 export async function trackShareClick(
-  dealType: 'group_buy' | 'price_lock',
+  dealType: 'group_buy' | 'price_lock' | 'rfq',
   slug: string,
   userId?: string | null,
   role?: string | null,
