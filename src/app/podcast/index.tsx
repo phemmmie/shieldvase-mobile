@@ -9,10 +9,10 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/api/supabase';
+import { usePodcastEpisodes } from '@/features/podcast/queries';
+import type { Episode } from '@/features/podcast/types';
 import { EmptyState, LoadingState } from '@/components/States';
 import { ScreenColumn } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
@@ -98,38 +98,8 @@ const BLOG_POSTS = [
   },
 ];
 
-type Episode = {
-  id: string;
-  number: string;
-  title: string;
-  host: string;
-  duration: string;
-  color: string;
-  category: string;
-};
-
-const useEpisodes = (category: string | null) =>
-  useQuery({
-    queryKey: ['podcast-episodes', category],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      let q = supabase
-        .from('podcast_episodes')
-        .select('id, episode_number, title, host, duration, color, category')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
-      if (category) q = q.eq('category', category);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []).map((e: any) => ({ ...e, number: e.episode_number })) as Episode[];
-    },
-  });
-
-const slugify = (t: string) =>
-  t.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-
 function EpisodeCard({ episode }: { episode: Episode }) {
-  const open = () => Linking.openURL(`${SITE}/podcast/${slugify(episode.title)}`);
+  const open = () => router.push(`/podcast/${episode.slug}`);
   return (
     <Pressable onPress={open} style={styles.epCard}>
       <View style={[styles.epTile, { backgroundColor: episode.color || colors.navy }]}>
@@ -165,7 +135,7 @@ export default function PodcastScreen() {
   const [category, setCategory] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [blogTab, setBlogTab] = useState('all');
-  const episodes = useEpisodes(category);
+  const episodes = usePodcastEpisodes(category);
 
   const filteredPosts = useMemo(
     () =>
