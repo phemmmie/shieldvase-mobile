@@ -137,6 +137,18 @@ export default function AccountScreen() {
         <Row icon="heart-outline" label="Saved products" onPress={() => router.push('/saved')} />
       </View>
 
+      {userType === 'sme' && (
+        <View style={styles.card}>
+          <Row icon="briefcase-outline" label="SME Dashboard" onPress={() => router.push('/sme' as any)} />
+          <Row icon="document-text-outline" label="Quotations" onPress={() => router.push('/sme/quotations' as any)} />
+          <Row icon="documents-outline" label="Invoices" onPress={() => router.push('/sme/invoices' as any)} />
+          <Row icon="card-outline" label="Credit Facility" onPress={() => router.push('/sme/credit' as any)} />
+          <Row icon="bar-chart-outline" label="Reports" onPress={() => router.push('/sme/reports' as any)} />
+          <Row icon="boat-outline" label="Shipments" onPress={() => router.push('/sme/shipments' as any)} />
+          <Row icon="settings-outline" label="Business Settings" onPress={() => router.push('/sme/settings' as any)} />
+        </View>
+      )}
+
       <View style={styles.card}>
         <Row icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
         <Row icon="location-outline" label="Delivery addresses" onPress={() => router.push('/addresses')} />
