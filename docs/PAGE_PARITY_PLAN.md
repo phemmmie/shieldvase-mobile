@@ -74,26 +74,28 @@ Verify web cart UI before mobile parity pass.
 | 5.4 | `/quote/[slug]` — shared quote | — | missing |
 | 5.5 | Join flows | `deals/join/*` | mobile adaptation — review |
 
-## Phase 6 — SME (buyer) dashboard
+## Phase 6 — SME (buyer) dashboard (done)
 
-Web `/sme/*` — the "user dashboard". Map onto Account tab + detail screens.
+Web `/sme/*` — the "user dashboard". Ported as `sme/*` stack screens reached
+from an SME hub card on the `account` tab (gated on `userType === 'sme'`).
+Shipped in OTA `299ba495-ce42-486f-b56e-c8f5c2be7d77` (commit `90d77e4`).
 
 | # | Web page | Mobile route | Status |
 |---|----------|--------------|--------|
-| 6.1 | `/sme/dashboard` — overview | `account` tab | partial — needs overview surface |
+| 6.1 | `/sme/dashboard` — overview | `sme` hub + `account` card | done |
 | 6.2 | `/sme/orders` | `orders` tab | covered — review |
 | 6.3 | `/sme/group-buy` — my group buys | `deals` hub | partial — review |
 | 6.4 | `/sme/price-lock` — my price locks | `deals` hub | partial — review |
 | 6.5 | `/sme/rfq` — my RFQs | `rfqs` tab, `rfq/[id]` | exists — review |
-| 6.6 | `/sme/quotations` | — | missing |
-| 6.7 | `/sme/invoices` | — | missing |
-| 6.8 | `/sme/reports` | — | missing |
+| 6.6 | `/sme/quotations` | `sme/quotations` → redirects to `/rfq` | done |
+| 6.7 | `/sme/invoices` | `sme/invoices` | done |
+| 6.8 | `/sme/reports` | `sme/reports` (CSV export) | done |
 | 6.9 | `/sme/rewards` | `rewards` | exists — review |
 | 6.10 | `/sme/saved` | `saved` | exists — review |
-| 6.11 | `/sme/shipments` | — | missing |
-| 6.12 | `/sme/credit` | — | missing |
+| 6.11 | `/sme/shipments` | `sme/shipments` | done |
+| 6.12 | `/sme/credit` | `sme/credit` (Coming Soon placeholder) | done |
 | 6.13 | `/sme/support` | — | missing |
-| 6.14 | `/sme/settings` + `/sme/settings/profile` | `account`, `addresses`, `address-form` | partial — profile editing missing |
+| 6.14 | `/sme/settings` + `/sme/settings/profile` | `sme/settings` (+ `addresses`, `address-form`) | done |
 
 ## Out of scope (flagged, not modeled)
 
