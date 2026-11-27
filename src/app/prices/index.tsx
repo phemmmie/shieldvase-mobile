@@ -20,6 +20,7 @@ import { ScreenColumn } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
 import { formatNaira } from '@/utils/money';
 import { buildProductParam } from '@/utils/productUrl';
+import { PRICE_INDEX_MATERIALS, citySlug } from '@/features/prices/priceIndexMaterials';
 
 // Mirrors web /prices (views/Prices.tsx + pricing/* components):
 // "Product Pricing" + Cart button, dashboard stats, category/trend bars,
@@ -42,24 +43,6 @@ type PriceProduct = {
   image_url: string | null;
 };
 
-const PRICE_INDEX_MATERIALS = [
-  {
-    slug: 'cement',
-    label: 'Cement',
-    cities: ['Abuja', 'Ibadan', 'Kaduna', 'Lagos', 'Port Harcourt'],
-  },
-  {
-    slug: 'iron-rod',
-    label: 'Iron Rod / Rebar',
-    cities: ['Abuja', 'Lagos', 'Kaduna'],
-  },
-  {
-    slug: 'roofing-sheets',
-    label: 'Roofing Sheets',
-    cities: ['Port Harcourt'],
-  },
-];
-
 const PRICE_RANGES = [
   'All Prices',
   '₦0 - ₦10,000',
@@ -68,8 +51,6 @@ const PRICE_RANGES = [
   '₦50,001 - ₦100,000',
   '₦100,001+',
 ];
-
-const citySlug = (city: string) => city.toLowerCase().replace(/\s+/g, '-');
 
 const usePricesProducts = () =>
   useQuery({
@@ -390,7 +371,7 @@ export default function PricesScreen() {
                   <Pressable
                     key={`${m.slug}-${c}`}
                     onPress={() =>
-                      Linking.openURL(`https://shieldvase.io/prices/${m.slug}/${citySlug(c)}`)
+                      router.push(`/prices/${m.slug}/${citySlug(c)}` as any)
                     }
                   >
                     <Text style={styles.guideLink}>{m.label} price in {c}</Text>
