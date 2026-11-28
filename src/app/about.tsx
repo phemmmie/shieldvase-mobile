@@ -1,14 +1,25 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenColumn } from '@/components/Responsive';
 import { colors, radius, shadows, spacing, typography } from '@/theme';
+import { usePublishedTeamMembers } from '@/features/about/queries';
+import {
+  filterTeamByOrg,
+  getInitials,
+  groupTeamByDepartment,
+  ORG_LABELS,
+  TeamOrg,
+  teamMembers,
+} from '@/features/about/team';
 
 // Mirrors web /about (views/About.tsx → sections/about/*): dark navy hero
-// with badge + tagline + CTAs + 3 trust cards, Mission/Vision cards,
-// Core Values grid, Our Story w/ stats, Expertise chips, gradient CTA.
+// with badge + tagline + CTAs + 3 trust cards, Platform Showcase,
+// Mission/Vision cards, Core Values grid, Our Story w/ stats, Technology
+// feature cards, Why ShieldVase stats, Organisations, Team directory,
+// Expertise chips, gradient CTA.
 
 const ABOUT_IMAGE = 'https://shieldvase.io/images/about-us-page.jpg';
 
@@ -31,8 +42,52 @@ const EXPERTISE: { title: string; description: string; tags: string[] }[] = [
   { title: 'Finance & Controls', description: 'Financial reporting, budgeting, financial controls, and business financial management.', tags: ['Financial Reporting', 'Financial Controls', 'Business Financial Management'] },
 ];
 
+const TECH_FEATURES: { icon: keyof typeof Ionicons.glyphMap; title: string; description: string }[] = [
+  { icon: 'git-network-outline', title: 'Comprehensive Marketplace', description: "A unified platform connecting vendors and buyers across Africa's raw materials sector." },
+  { icon: 'bar-chart-outline', title: 'AI-Powered Insights', description: 'Advanced machine learning and LLM agents provide real-time market analysis and predictions.' },
+  { icon: 'globe-outline', title: 'Market Trend Tools', description: 'Automated tools for tracking prices, demand patterns, and market opportunities.' },
+];
+
+const WHY_STATS: { value: string; label: string }[] = [
+  { value: '500+', label: 'Active Vendors' },
+  { value: '10K+', label: 'Monthly Transactions' },
+  { value: '98%', label: 'Customer Satisfaction' },
+  { value: '30%', label: 'Average Cost Savings' },
+];
+
+const ORGANISATIONS: { icon: keyof typeof Ionicons.glyphMap; name: string; tag: string; description: string; points: string[] }[] = [
+  {
+    icon: 'business-outline', name: 'OptiForge', tag: 'Group company',
+    description: 'The technology group behind ShieldVase. OptiForge builds and operates digital products that apply software engineering, AI, and data to real operational problems across African markets.',
+    points: ['Product engineering', 'AI & data platforms', 'Venture building'],
+  },
+  {
+    icon: 'storefront-outline', name: 'ShieldVase Marketplace', tag: 'Product',
+    description: 'A B2B marketplace that aggregates verified vendors so SMEs, contractors, and industrial buyers get transparent pricing, reliable supply, and financing for raw materials.',
+    points: ['Verified suppliers', 'Price Lock & Group Buy', 'RFQ & procurement tools'],
+  },
+];
+
+const TEAM_FILTERS: { value: TeamOrg | 'all'; label: string }[] = [
+  { value: 'all', label: 'Everyone' },
+  { value: 'shieldvase', label: 'ShieldVase Marketplace' },
+  { value: 'optiforge', label: 'OptiForge' },
+];
+
 export default function AboutScreen() {
   const router = useRouter();
+  const [orgFilter, setOrgFilter] = useState<TeamOrg | 'all'>('all');
+  // Published profiles come from the admin-managed team_members table;
+  // the static seed is only a fallback while the table is unreachable.
+  const { data: dbMembers, isError } = usePublishedTeamMembers();
+  const members = useMemo(
+    () => (isError ? teamMembers : (dbMembers ?? [])),
+    [isError, dbMembers],
+  );
+  const groups = useMemo(
+    () => groupTeamByDepartment(filterTeamByOrg(members, orgFilter)),
+    [members, orgFilter],
+  );
 
   return (
     <View style={styles.screen}>
@@ -70,6 +125,18 @@ export default function AboutScreen() {
         </View>
 
         <ScreenColumn pad={false}>
+          {/* Platform Showcase — web PlatformShowcaseSection */}
+          <View style={styles.section}>
+            <Text style={[styles.kicker, styles.centered]}>One platform</Text>
+            <Text style={[styles.sectionTitle, styles.centered]}>
+              Everything you need to build smarter and save more
+            </Text>
+            <Text style={[styles.mvText, styles.centered]}>
+              Price Lock, Group Buying, RFQ &amp; Quotes, Verified Suppliers, and a full
+              marketplace — all in one place.
+            </Text>
+          </View>
+
           <View style={styles.section}>
             {/* Mission & Vision — web MissionVisionSection */}
             <Text style={styles.kicker}>What we do</Text>
@@ -138,6 +205,174 @@ export default function AboutScreen() {
                 <Text style={styles.storyStatValueSmall}>SMEs, contractors &amp; vendors</Text>
               </View>
             </View>
+          </View>
+
+          {/* Technology — web TechnologySection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, styles.centered]}>What We Offer</Text>
+            <Text style={[styles.mvText, styles.centered]}>
+              Cutting-edge technology powering Africa&apos;s raw materials trade
+            </Text>
+            {TECH_FEATURES.map(f => (
+              <View key={f.title} style={styles.expCard}>
+                <Ionicons name={f.icon} size={28} color={colors.primary} />
+                <Text style={styles.techTitle}>{f.title}</Text>
+                <Text style={styles.expDesc}>{f.description}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Why ShieldVase — web WhyShieldVaseSection (bg-gray-50 band) */}
+          <View style={styles.whySection}>
+            <Text style={[styles.sectionTitle, styles.centered]}>Why ShieldVase?</Text>
+            <View style={styles.whyStatsGrid}>
+              {WHY_STATS.map(s => (
+                <View key={s.label} style={styles.whyStatCard}>
+                  <Text style={styles.whyStatValue}>{s.value}</Text>
+                  <Text style={styles.whyStatLabel}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.whyBlurb}>
+              <Text style={[styles.mvText, styles.centered]}>
+                ShieldVase provides a one-stop solution for businesses to source raw materials
+                efficiently. With advanced AI tools and a robust marketplace, we ensure
+                transparency, competitive pricing, and up-to-date market trends.
+              </Text>
+            </View>
+          </View>
+
+          {/* Organisations — web OrganisationsSection (bg #f8f5ee band) */}
+          <View style={styles.orgsSection}>
+            <Text style={[styles.kicker, styles.centered]}>About the organisation</Text>
+            <Text style={[styles.sectionTitle, styles.centered]}>One group, one marketplace</Text>
+            <Text style={[styles.mvText, styles.centered]}>
+              ShieldVase Marketplace is built and operated by OptiForge — the group company
+              applying technology to everyday trade problems.
+            </Text>
+            {ORGANISATIONS.map(org => (
+              <View key={org.name} style={styles.orgCard}>
+                <View style={styles.orgHeader}>
+                  <View style={styles.orgIcon}>
+                    <Ionicons name={org.icon} size={22} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orgName}>{org.name}</Text>
+                    <Text style={styles.orgTag}>{org.tag}</Text>
+                  </View>
+                </View>
+                <Text style={styles.mvText}>{org.description}</Text>
+                <View style={styles.expTags}>
+                  {org.points.map(p => (
+                    <View key={p} style={styles.expTag}>
+                      <Text style={styles.expTagText}>{p}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+            <Pressable style={styles.orgLink} onPress={() => router.push('/contact' as any)}>
+              <Text style={styles.orgLinkText}>Talk to the team about partnerships</Text>
+              <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+            </Pressable>
+          </View>
+
+          {/* Team — web TeamSection (DB-backed w/ static fallback) */}
+          <View style={styles.section}>
+            <View style={styles.teamBadge}>
+              <Ionicons name="people-outline" size={14} color={colors.primary} />
+              <Text style={styles.teamBadgeText}>Meet the team</Text>
+            </View>
+            <Text style={[styles.sectionTitle, styles.centered]}>
+              The people behind ShieldVase Marketplace and OptiForge
+            </Text>
+            <Text style={[styles.mvText, styles.centered]}>
+              A cross-functional group covering engineering, data, finance, operations, and
+              sustainability — building and running the platform together.
+            </Text>
+            <View style={styles.teamFilters}>
+              {TEAM_FILTERS.map(f => (
+                <Pressable
+                  key={f.value}
+                  style={[styles.teamFilterChip, orgFilter === f.value && styles.teamFilterChipActive]}
+                  onPress={() => setOrgFilter(f.value)}
+                >
+                  <Text
+                    style={[styles.teamFilterText, orgFilter === f.value && styles.teamFilterTextActive]}
+                  >
+                    {f.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {groups.map(group => (
+              <View key={group.department} style={styles.teamGroup}>
+                <Text style={styles.teamDept}>{group.department}</Text>
+                {group.members.map(m => (
+                  <View key={m.id} style={styles.memberCard}>
+                    <View style={styles.memberHeader}>
+                      {m.photoUrl ? (
+                        <Image source={{ uri: m.photoUrl }} style={styles.memberAvatar} contentFit="cover" />
+                      ) : (
+                        <View style={[styles.memberAvatar, styles.memberAvatarFallback]}>
+                          <Text style={styles.memberInitials}>{getInitials(m.name)}</Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.memberName} numberOfLines={1}>{m.name}</Text>
+                        <Text style={styles.memberRole}>{m.role}</Text>
+                        {!m.roleVerified && (
+                          <View style={styles.pendingBadge}>
+                            <Text style={styles.pendingBadgeText}>Role pending verification</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    {m.organisations.length > 0 && (
+                      <View style={styles.expTags}>
+                        {m.organisations.map(o => (
+                          <View key={o} style={styles.expTag}>
+                            <Text style={styles.expTagText}>{ORG_LABELS[o]}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    <Text style={[styles.memberBio, !m.bio && styles.memberBioPending]}>
+                      {m.bio ?? 'Biography pending — to be added by an administrator once verified.'}
+                    </Text>
+                    {m.expertise.length > 0 && (
+                      <View style={styles.expTags}>
+                        {m.expertise.map(tag => (
+                          <View key={tag} style={styles.expTag}>
+                            <Text style={styles.expTagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {(m.linkedinUrl || m.portfolioUrl) && (
+                      <View style={styles.memberLinks}>
+                        {m.linkedinUrl && (
+                          <Pressable style={styles.memberLink} onPress={() => Linking.openURL(m.linkedinUrl!)}>
+                            <Ionicons name="logo-linkedin" size={12} color={colors.textMuted} />
+                            <Text style={styles.memberLinkText}>LinkedIn</Text>
+                          </Pressable>
+                        )}
+                        {m.portfolioUrl && (
+                          <Pressable style={styles.memberLink} onPress={() => Linking.openURL(m.portfolioUrl!)}>
+                            <Ionicons name="globe-outline" size={12} color={colors.textMuted} />
+                            <Text style={styles.memberLinkText}>Portfolio</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            ))}
+            <Text style={styles.teamDisclaimer}>
+              Profiles are being verified — roles and organisation affiliations shown here are
+              drafts pending confirmation.
+            </Text>
           </View>
 
           {/* Expertise — web ExpertiseSection */}
@@ -243,6 +478,88 @@ const styles = StyleSheet.create({
   expTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm },
   expTag: { backgroundColor: colors.surfaceAlt, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
   expTagText: { ...typography.micro, color: colors.textMuted },
+  centered: { textAlign: 'center' },
+  techTitle: { ...typography.bodyStrong, color: colors.text, marginTop: spacing.sm },
+  whySection: {
+    marginHorizontal: spacing.xl, marginTop: spacing['2xl'],
+    backgroundColor: colors.surfaceAlt, borderRadius: radius.xl, padding: spacing.lg,
+  },
+  whyStatsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
+  whyStatCard: {
+    width: '47%', alignItems: 'center', backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border,
+  },
+  whyStatValue: { ...typography.h2, color: colors.primary },
+  whyStatLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs, textAlign: 'center' },
+  whyBlurb: {
+    marginTop: spacing.sm, backgroundColor: colors.surfaceRaised, borderRadius: radius.lg,
+    padding: spacing.lg, borderWidth: 1, borderColor: colors.border,
+  },
+  orgsSection: {
+    marginTop: spacing['2xl'], backgroundColor: '#f8f5ee',
+    paddingHorizontal: spacing.xl, paddingVertical: spacing['2xl'],
+  },
+  orgCard: {
+    marginTop: spacing.md, backgroundColor: colors.surfaceRaised, borderRadius: radius.xl,
+    padding: spacing.lg, borderWidth: 1, borderColor: colors.border, ...shadows.card,
+  },
+  orgHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  orgIcon: {
+    width: 44, height: 44, borderRadius: radius.md,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft,
+  },
+  orgName: { ...typography.h3, color: colors.text },
+  orgTag: { ...typography.caption, color: colors.textMuted },
+  orgLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginTop: spacing.lg,
+  },
+  orgLinkText: { ...typography.captionStrong, color: colors.primary },
+  teamBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center',
+    backgroundColor: colors.primarySoft, borderRadius: radius.pill,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+  },
+  teamBadgeText: { ...typography.captionStrong, color: colors.primary },
+  teamFilters: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center',
+    gap: spacing.xs, marginTop: spacing.lg,
+  },
+  teamFilterChip: {
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised, paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+  },
+  teamFilterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  teamFilterText: { ...typography.captionStrong, color: colors.textMuted },
+  teamFilterTextActive: { color: colors.textOnPrimary },
+  teamGroup: { marginTop: spacing.xl },
+  teamDept: { ...typography.micro, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.6 },
+  memberCard: {
+    marginTop: spacing.sm, backgroundColor: colors.surfaceRaised, borderRadius: radius.lg,
+    padding: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.card,
+  },
+  memberHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  memberAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.border },
+  memberAvatarFallback: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  memberInitials: { ...typography.bodyStrong, color: colors.primary },
+  memberName: { ...typography.bodyStrong, color: colors.text },
+  memberRole: { ...typography.caption, color: colors.primary },
+  pendingBadge: {
+    alignSelf: 'flex-start', marginTop: spacing.xs, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: '#F59E0B', backgroundColor: '#FFFBEB',
+    paddingHorizontal: spacing.sm, paddingVertical: 2,
+  },
+  pendingBadgeText: { ...typography.micro, color: '#B45309' },
+  memberBio: { ...typography.caption, color: colors.textMuted, marginTop: spacing.sm },
+  memberBioPending: { fontStyle: 'italic' },
+  memberLinks: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  memberLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    paddingHorizontal: spacing.sm, paddingVertical: 4,
+  },
+  memberLinkText: { ...typography.micro, color: colors.textMuted },
+  teamDisclaimer: { ...typography.micro, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg },
   cta: {
     margin: spacing.xl, marginTop: spacing['2xl'], borderRadius: radius.xl,
     backgroundColor: colors.primary, padding: spacing.xl, alignItems: 'center',
