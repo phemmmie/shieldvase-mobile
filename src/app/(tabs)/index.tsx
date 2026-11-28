@@ -84,8 +84,6 @@ const FAQS: { icon: keyof typeof Ionicons.glyphMap; tint: string; q: string; a: 
   },
 ];
 
-const SITE = 'https://shieldvase.io';
-
 const WHATSAPP_LINK = `https://wa.me/2347051277149?text=${encodeURIComponent(
   "Hi, I'd like to place an order",
 )}`;
@@ -506,7 +504,7 @@ export default function HomeScreen() {
                         </Text>
                       </View>
                       <Pressable
-                        onPress={() => Linking.openURL(`${SITE}/podcast/${slug}`)}
+                        onPress={() => router.push(`/podcast/${slug}` as any)}
                         style={({ pressed }) => [styles.podBtn, pressed && { opacity: 0.85 }]}
                       >
                         <Ionicons name="headset" size={13} color="#FFFFFF" />
@@ -558,7 +556,7 @@ export default function HomeScreen() {
             reliable supply chains.
           </Text>
           <Pressable
-            onPress={() => Linking.openURL(`${SITE}/contact`)}
+            onPress={() => router.push('/contact' as any)}
             style={styles.ctaBtn}
           >
             <Text style={styles.ctaBtnText}>Contact Us</Text>

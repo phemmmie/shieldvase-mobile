@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -109,12 +108,12 @@ const useLatestPodcasts = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from('podcast_episodes')
-        .select('id, title, host, duration')
+        .select('id, title, slug, host, duration')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(3);
       if (error) throw error;
-      return (data ?? []) as { id: string; title: string; host: string; duration: string }[];
+      return (data ?? []) as { id: string; title: string; slug: string | null; host: string; duration: string }[];
     },
   });
 
@@ -379,7 +378,7 @@ export default function PricesScreen() {
                 )),
               )}
             </View>
-            <Pressable onPress={() => Linking.openURL('https://shieldvase.io/calculators')}>
+            <Pressable onPress={() => router.push('/calculators' as any)}>
               <Text style={[styles.guideLink, styles.calcLink]}>
                 Try our free cement, block &amp; materials cost calculators →
               </Text>
@@ -393,7 +392,7 @@ export default function PricesScreen() {
               <Pressable
                 key={ep.id}
                 style={styles.podRow}
-                onPress={() => Linking.openURL(`https://shieldvase.io/podcast/${podSlug(ep.title)}`)}
+                onPress={() => router.push(`/podcast/${ep.slug ?? podSlug(ep.title)}` as any)}
               >
                 <View style={styles.podPlay}>
                   <Ionicons name="play" size={14} color={colors.textOnPrimary} />

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -23,7 +22,6 @@ import { colors, radius, shadows, spacing, typography } from '@/theme';
 
 const CREAM = '#FDF5E6';
 const CREAM_DARK = '#F5EDD5';
-const SITE = 'https://shieldvase.io';
 const S3 = 'https://shieldvase-bronze-images.s3.eu-north-1.amazonaws.com/';
 
 const CATEGORIES = [
@@ -213,7 +211,7 @@ export default function PodcastScreen() {
               ))}
               <Pressable
                 style={styles.loadMore}
-                onPress={() => Linking.openURL(`${SITE}/guides`)}
+                onPress={() => router.push('/guides' as any)}
               >
                 <Text style={styles.loadMoreText}>Load More Articles</Text>
               </Pressable>
