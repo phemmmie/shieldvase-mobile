@@ -61,7 +61,7 @@ Verify web cart UI before mobile parity pass.
 | 4.2 | Checkout flow | `checkout` | exists — needs parity review |
 | 4.3 | `/orders` — order list | `orders` tab | exists — needs parity review |
 | 4.4 | Order detail | `order/[id]` | exists — needs parity review |
-| 4.5 | `/order-success/[orderId]` | — | missing/review |
+| 4.5 | `/order-success/[orderId]` | `order-success/[orderId]` | done (`bf1deb1`) |
 | 4.6 | `/payment-callback/[id]`, `/payment/return`, `/payment-error` | `payment-callback/[ref]` | exists — needs parity review |
 
 ## Phase 5 — Deals
@@ -69,8 +69,8 @@ Verify web cart UI before mobile parity pass.
 | # | Web page | Mobile route | Status |
 |---|----------|--------------|--------|
 | 5.1 | `/deals/[dealType]/[slug]` — deal landing | `deals/group-buy/[slug]`, `deals/price-lock/[slug]` | exists — needs parity review |
-| 5.2 | `/group-buy` — marketing page | — | missing |
-| 5.3 | `/price-lock` — marketing page | — | missing |
+| 5.2 | `/group-buy` — marketing page | `group-buy` | done (`3b0c41a`) |
+| 5.3 | `/price-lock` — marketing page | `price-lock` | done (`3b0c41a`) |
 | 5.4 | `/quote/[slug]` — shared quote | `quote/[slug]` | done (prior session) |
 | 5.5 | Join flows | `deals/join/*` | mobile adaptation — review |
 
@@ -94,7 +94,7 @@ Shipped in OTA `299ba495-ce42-486f-b56e-c8f5c2be7d77` (commit `90d77e4`).
 | 6.10 | `/sme/saved` | `saved` | exists — review |
 | 6.11 | `/sme/shipments` | `sme/shipments` | done |
 | 6.12 | `/sme/credit` | `sme/credit` (Coming Soon placeholder) | done |
-| 6.13 | `/sme/support` | — | missing |
+| 6.13 | `/sme/support` | `sme/support` | done (`e0cb806`) |
 | 6.14 | `/sme/settings` + `/sme/settings/profile` | `sme/settings` (+ `addresses`, `address-form`) | done |
 
 ## Out of scope (flagged, not modeled)
