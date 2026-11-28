@@ -31,24 +31,24 @@ Core commerce flow — highest traffic after home.
 
 | # | Web page | Mobile route | Status |
 |---|----------|--------------|--------|
-| 2.1 | `/prices` + `/prices/[material]/[city]` — price index/lookup | — | missing |
-| 2.2 | `/podcast` + `/podcast/[slug]` | — | missing (currently links out to web) |
-| 2.3 | `/about` | — | missing (links out) |
-| 2.4 | `/contact` | — | missing (links out) |
-| 2.5 | `/logistics-hub` | — | missing (links out) |
+| 2.1 | `/prices` + `/prices/[material]/[city]` — price index/lookup | `prices` + `prices/[material]/[city]` | done (`214fdfd`) |
+| 2.2 | `/podcast` + `/podcast/[slug]` | `podcast` + `podcast/[slug]` | done (`05c8247`) |
+| 2.3 | `/about` | `about` | done (`375490c`) |
+| 2.4 | `/contact` | `contact` | done (prior session) |
+| 2.5 | `/logistics-hub` | `logistics-hub` | done (prior session) |
 | 2.6 | `/rfq` — marketing RFQ entry | `rfq/new`, `rfqs` tab | exists — compare vs web entry page |
 
 ## Phase 3 — Footer pages
 
 | # | Web page | Mobile route | Status |
 |---|----------|--------------|--------|
-| 3.1 | `/faq` | — | missing (accordion lives on home only) |
-| 3.2 | `/services` | — | missing (links out) |
-| 3.3 | `/guides` + `/guides/[slug]` | — | missing |
+| 3.1 | `/faq` | `faq` | done (prior session) |
+| 3.2 | `/services` | `services` | done (prior session) |
+| 3.3 | `/guides` + `/guides/[slug]` | `guides` + `guides/[slug]` | done (prior session) |
 | 3.4 | `/rewards-and-benefits` | `rewards` | partial — compare marketing vs dashboard versions |
-| 3.5 | `/privacy-policy` | — | missing |
-| 3.6 | `/terms-and-conditions` | — | missing |
-| 3.7 | `/whatsapp-bot` | — | missing |
+| 3.5 | `/privacy-policy` | `privacy-policy` | done (prior session) |
+| 3.6 | `/terms-and-conditions` | `terms-and-conditions` | done (prior session) |
+| 3.7 | `/whatsapp-bot` | `whatsapp-bot` | done (prior session) |
 
 ## Phase 4 — Commerce flow
 
@@ -71,7 +71,7 @@ Verify web cart UI before mobile parity pass.
 | 5.1 | `/deals/[dealType]/[slug]` — deal landing | `deals/group-buy/[slug]`, `deals/price-lock/[slug]` | exists — needs parity review |
 | 5.2 | `/group-buy` — marketing page | — | missing |
 | 5.3 | `/price-lock` — marketing page | — | missing |
-| 5.4 | `/quote/[slug]` — shared quote | — | missing |
+| 5.4 | `/quote/[slug]` — shared quote | `quote/[slug]` | done (prior session) |
 | 5.5 | Join flows | `deals/join/*` | mobile adaptation — review |
 
 ## Phase 6 — SME (buyer) dashboard (done)
