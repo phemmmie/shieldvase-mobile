@@ -146,6 +146,7 @@ export default function AccountScreen() {
           <Row icon="bar-chart-outline" label="Reports" onPress={() => router.push('/sme/reports' as any)} />
           <Row icon="boat-outline" label="Shipments" onPress={() => router.push('/sme/shipments' as any)} />
           <Row icon="settings-outline" label="Business Settings" onPress={() => router.push('/sme/settings' as any)} />
+          <Row icon="help-circle-outline" label="Contact Support" onPress={() => router.push('/sme/support' as any)} />
         </View>
       )}
 

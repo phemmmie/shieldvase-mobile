@@ -79,6 +79,7 @@ export default function SMEDashboard() {
         <LinkRow icon="cash-outline" label="Credit Facility" href="/sme/credit" />
         <LinkRow icon="chatbox-ellipses-outline" label="Request for Quotation" href="/rfq" />
         <LinkRow icon="settings-outline" label="SME Settings" href="/sme/settings" />
+        <LinkRow icon="help-circle-outline" label="Contact Support" hint="Manage your support requests" href="/sme/support" />
       </View>
 
       <Text style={styles.sectionTitle}>Active Orders</Text>
