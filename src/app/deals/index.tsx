@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -22,7 +22,11 @@ type Segment = 'group' | 'lock' | 'mine';
 
 export default function DealsHubScreen() {
   useDealRealtimeSync();
-  const [segment, setSegment] = useState<Segment>('group');
+  // /deals?segment=lock|mine deep-links straight into a tab (marketing CTAs).
+  const { segment: segmentParam } = useLocalSearchParams<{ segment?: Segment }>();
+  const [segment, setSegment] = useState<Segment>(
+    segmentParam === 'lock' || segmentParam === 'mine' ? segmentParam : 'group',
+  );
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: 'Deals' }} />
